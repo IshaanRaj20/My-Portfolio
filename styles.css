@@ -1,0 +1,283 @@
+.contact a {
+  display: inline-block;
+  margin: 10px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: #3b82f6;
+  color: white;
+  text-decoration: none;
+  transition: 0.2s;
+}
+
+.contact a:hover {
+  background: #60a5fa;
+  transform: scale(1.05);
+}
+
+.contact a:visited {
+  color: white;
+}
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+  background: linear-gradient(135deg, #0f172a, #1e3a8a);
+  color: white;
+}
+
+/* NAV */
+nav {
+  display: flex;
+  justify-content: space-between;
+  padding: 20px 40px;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(10px);
+}
+
+nav h3 {
+  color: #60a5fa;
+}
+
+/* HERO */
+.hero {
+  padding: 100px 20px;
+  text-align: center;
+}
+
+.hero h1 {
+  font-size: 52px;
+  color: #60a5fa;
+}
+
+.hero span {
+  color: white;
+}
+
+.hero p {
+  margin-top: 15px;
+  font-size: 18px;
+  color: #cbd5f5;
+}
+
+.hero button {
+  margin-top: 25px;
+  padding: 12px 22px;
+  border: none;
+  border-radius: 8px;
+  background: #3b82f6;
+  color: white;
+  cursor: pointer;
+}
+
+/* BADGES */
+.badges {
+  margin-top: 25px;
+}
+
+.badge {
+  display: inline-block;
+  margin: 6px;
+  padding: 8px 12px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.1);
+  font-size: 14px;
+}
+
+/* SECTION */
+section {
+  padding: 70px 20px;
+  text-align: center;
+}
+
+h2 {
+  font-size: 34px;
+  color: #93c5fd;
+}
+
+.section-text {
+  max-width: 600px;
+  margin: 10px auto 0;
+  color: #cbd5f5;
+}
+
+/* PROJECTS */
+.projects {
+  margin-top: 30px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 25px;
+}
+
+.card {
+  padding: 25px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.1);
+  transition: 0.3s;
+  text-align: left;
+}
+
+.card:hover {
+  transform: translateY(-8px);
+  background: rgba(255,255,255,0.12);
+}
+
+.card h3 {
+  margin-bottom: 10px;
+}
+
+.card p {
+  color: #cbd5f5;
+  font-size: 14px;
+}
+
+.card button {
+  margin-top: 15px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  background: #3b82f6;
+  color: white;
+  cursor: pointer;
+}
+
+/* ANIMATION */
+.fade {
+  opacity: 0;
+  transform: translateY(40px) scale(0.98);
+  transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.fade.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+footer {
+  padding: 30px;
+  text-align: center;
+  color: #aaa;
+}
+
+#about h2 {
+  font-size: 42px;
+  margin-bottom: 20px;
+}
+
+.section-text {
+  font-size: 20px;
+  line-height: 1.8;
+  max-width: 800px;
+}
+
+#about {
+  padding: 100px 20px;
+}
+
+#typing-text::after {
+  content: "|";
+  margin-left: 5px;
+  animation: blink 1s infinite;
+  transition: opacity 0.5s ease;
+}
+
+#typing-text.done::after {
+  opacity: 0;
+  animation: none;
+}
+
+@keyframes blink {
+  0%, 50%, 100% { opacity: 1; }
+  25%, 75% { opacity: 0; }
+}
+
+.bg-decor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  overflow: hidden;
+}
+
+/* glowing blobs */
+.blob {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  background: #3b82f6;
+  filter: blur(120px);
+  opacity: 0.25;
+  border-radius: 50%;
+}
+
+/* left side */
+.blob1 {
+  top: 20%;
+  left: -100px;
+}
+
+/* right side */
+.blob2 {
+  bottom: 10%;
+  right: -100px;
+}
+
+.card a {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: #3b82f6;
+  color: white;
+  text-decoration: none; /* removes underline */
+  transition: 0.2s;
+}
+
+/* hover effect */
+.card a:hover {
+  background: #60a5fa;
+  transform: scale(1.05);
+}
+
+/* remove purple visited color */
+.card a:visited {
+  color: white;
+}
+
+.card a {
+  box-shadow: 0 0 10px rgba(59,130,246,0.5);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.card {
+  transition: 0.3s;
+}
+
+.card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+}
+
+.hero span {
+  color: #3b82f6;
+  text-shadow: 0 0 15px rgba(59,130,246,0.6);
+}
+
+section {
+  padding: 80px 20px;
+}
+
+html {
+  scroll-behavior: smooth;
+}
