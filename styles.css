@@ -1,0 +1,281 @@
+/* RESET */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: linear-gradient(135deg, #0f172a, #1e3a8a);
+  color: white;
+}
+
+/* NAV */
+nav {
+  display: flex;
+  justify-content: space-between;
+  padding: 20px 40px;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(10px);
+}
+
+nav h3 {
+  color: #60a5fa;
+}
+
+/* HERO */
+.hero {
+  padding: 75px 20px;
+  text-align: center;
+}
+
+.hero h1 {
+  font-size: 52px;
+  color: #60a5fa;
+}
+
+.hero span {
+  color: #3b82f6;
+  text-shadow: 0 0 15px rgba(59,130,246,0.6);
+}
+
+.hero p {
+  margin-top: 15px;
+  font-size: 18px;
+  color: #cbd5f5;
+}
+
+/* BADGES */
+.badges {
+  margin-top: 25px;
+}
+
+.badge {
+  display: inline-block;
+  margin: 6px;
+  padding: 8px 12px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.1);
+  font-size: 15px;
+}
+
+/* SECTION */
+section {
+  padding: 50px 20px;
+  text-align: center;
+}
+
+h2 {
+  font-size: 34px;
+  color: #93c5fd;
+}
+
+.section-text {
+  max-width: 800px;
+  margin: 10px auto 0;
+  color: #cbd5f5;
+  font-size: 20px;
+  line-height: 1.8;
+}
+
+/* PROJECTS LAYOUT */
+.projects {
+  margin-top: 30px;
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.card {
+  flex: 1 1 48%;
+  padding: 25px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.1);
+  transition: 0.3s;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.card:hover {
+  transform: translateY(-8px);
+  background: rgba(255,255,255,0.12);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+}
+
+/* CARD CONTENT LAYOUT */
+.card-row {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+/* IMAGE */
+.project-img {
+  width: 300px;
+  height: auto;
+  border-radius: 12px;
+  object-fit: contain;
+  flex-shrink: 0;
+  background: #000;
+}
+
+/* TEXT SIDE */
+.card-content {
+  flex: 1;
+}
+
+.card h3 {
+  margin-bottom: 10px;
+  font-size: 1.6em;
+}
+
+.card p {
+  color: #cbd5f5;
+  font-size: 18px;
+}
+
+/* BADGES IN CARD */
+.badges-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* BUTTON */
+.card a {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: #3b82f6;
+  color: white;
+  text-decoration: none;
+  transition: 0.2s;
+  box-shadow: 0 0 10px rgba(59,130,246,0.5);
+}
+
+.card a:hover {
+  background: #60a5fa;
+  transform: scale(1.05);
+}
+
+.card a:visited {
+  color: white;
+}
+
+/* CONTACT */
+.contact a {
+  display: inline-block;
+  margin: 10px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: #3b82f6;
+  color: white;
+  text-decoration: none;
+  transition: 0.2s;
+}
+
+.contact a:hover {
+  background: #60a5fa;
+  transform: scale(1.05);
+}
+
+.contact a:visited {
+  color: white;
+}
+
+/* ANIMATION */
+.fade {
+  opacity: 0;
+  transform: translateY(40px) scale(0.98);
+  transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.fade.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* TYPING CURSOR */
+#typing-text::after {
+  content: "|";
+  margin-left: 5px;
+  animation: blink 1s infinite;
+}
+
+#typing-text.done::after {
+  opacity: 0;
+  animation: none;
+}
+
+@keyframes blink {
+  0%, 50%, 100% { opacity: 1; }
+  25%, 75% { opacity: 0; }
+}
+
+/* BACKGROUND BLOBS */
+.bg-decor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+}
+
+.blob {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  background: #3b82f6;
+  filter: blur(120px);
+  opacity: 0.25;
+  border-radius: 50%;
+}
+
+.blob1 {
+  top: 20%;
+  left: -100px;
+}
+
+.blob2 {
+  bottom: 10%;
+  right: -100px;
+}
+
+/* FOOTER */
+footer {
+  padding: 30px;
+  text-align: center;
+  color: #aaa;
+}
+
+/* MOBILE FIX */
+@media (max-width: 700px) {
+  .projects {
+    flex-direction: column;
+  }
+
+  .card {
+    flex: 1 1 100%;
+  }
+
+  .card-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .project-img {
+    width: 100%;
+    max-width: 300px;
+  }
+}
