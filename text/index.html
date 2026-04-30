@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Chat</title>
+  <style>
+    body { background:#0f172a; color:white; font-family:sans-serif; }
+    #chat { height:300px; overflow-y:auto; border:1px solid #333; padding:10px; margin-bottom:10px;}
+    input { padding:10px; width:70%; }
+    button { padding:10px; }
+  </style>
+</head>
+<body>
+
+<h2>👀 Ishaan Chat</h2>
+
+<div id="chat"></div>
+
+<input id="msg" placeholder="Type...">
+<button onclick="send()">Send</button>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDp1LSm2HlZ3xBDlwBPnEU62Es_KoyavUw",
+  authDomain: "secret-chat-6de59.firebaseapp.com",
+  projectId: "secret-chat-6de59",
+  storageBucket: "secret-chat-6de59.firebasestorage.app",
+  messagingSenderId: "107760706349",
+  appId: "1:107760706349:web:aad5387e7d0003d90ca9a4"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+function send() {
+  const text = document.getElementById("msg").value;
+  db.ref("messages").push(text);
+  document.getElementById("msg").value = "";
+}
+
+db.ref("messages").on("child_added", snap => {
+  const div = document.getElementById("chat");
+  div.innerHTML += "<p>" + snap.val() + "</p>";
+});
+</script>
+
+</body>
+</html>
