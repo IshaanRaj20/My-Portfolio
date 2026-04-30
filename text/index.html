@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Ishaan Chat</title>
+  <style>
+    body { margin:0; font-family:sans-serif; background:#0f172a; color:white; display:flex; }
+    
+    #sidebar {
+      width:200px;
+      background:#020617;
+      padding:10px;
+      height:100vh;
+    }
+
+    #chatContainer {
+      flex:1;
+      display:flex;
+      flex-direction:column;
+    }
+
+    #chat {
+      flex:1;
+      overflow-y:auto;
+      padding:10px;
+    }
+
+    #inputArea {
+      display:flex;
+      padding:10px;
+      background:#020617;
+    }
+
+    input { flex:1; padding:10px; }
+    button { padding:10px; margin-left:5px; }
+
+    .msg { margin:5px 0; }
+    .user { color:#38bdf8; }
+  </style>
+</head>
+<body>
+
+<div id="sidebar">
+  <h3>Rooms</h3>
+  <button onclick="setRoom('general')"># general</button><br>
+  <button onclick="setRoom('random')"># random</button><br><br>
+
+  <button onclick="login()">Login</button>
+  <p id="userDisplay"></p>
+</div>
+
+<div id="chatContainer">
+  <div id="chat"></div>
+
+  <div id="inputArea">
+    <input id="msg" placeholder="Type message...">
+    <button onclick="send()">Send</button>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDp1LSm2HlZ3xBDlwBPnEU62Es_KoyavUw",
+  authDomain: "secret-chat-6de59.firebaseapp.com",
+  projectId: "secret-chat-6de59",
+  storageBucket: "secret-chat-6de59.firebasestorage.app",
+  messagingSenderId: "107760706349",
+  appId: "1:107760706349:web:aad5387e7d0003d90ca9a4"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const auth = firebase.auth();
+const db = firebase.database();
+
+// ✅ STEP 1: Allowed emails (EDIT THESE)
+const allowedEmails = [
+  "bhagt.prerna@gmail.com",
+  "rakesh.chourasia15@gmail.com",
+  "ishaan.raj111@gmail.com"
+];
+
+let currentUser = null;
+let currentRoom = "general";
+
+function login() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider);
+}
+
+// ✅ STEP 2: Check if user is allowed
+auth.onAuthStateChanged(user => {
+  if (user) {
+
+    // 🚫 Block users NOT in your list
+    if (!allowedEmails.includes(user.email)) {
+      alert("Access denied 🚫");
+      auth.signOut();
+      return;
+    }
+
+    // ✅ Allow access
+    currentUser = user;
+    document.getElementById("userDisplay").innerText = user.displayName;
+    loadMessages();
+  }
+});
+
+function setRoom(room) {
+  currentRoom = room;
+  document.getElementById("chat").innerHTML = "";
+  loadMessages();
+}
+
+function send() {
+  const text = document.getElementById("msg").value;
+  if (!text || !currentUser) return;
+
+  db.ref("rooms/" + currentRoom).push({
+    name: currentUser.displayName,
+    text: text
+  });
+
+  document.getElementById("msg").value = "";
+}
+
+function loadMessages() {
+  const chat = document.getElementById("chat");
+  db.ref("rooms/" + currentRoom).off();
+
+  db.ref("rooms/" + currentRoom).on("child_added", snap => {
+    const data = snap.val();
+    chat.innerHTML += `
+      <div class="msg">
+        <span class="user">${data.name}:</span> ${data.text}
+      </div>
+    `;
+    chat.scrollTop = chat.scrollHeight;
+  });
+}
+</script>
+
+</body>
+</html>
