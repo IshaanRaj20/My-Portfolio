@@ -180,7 +180,7 @@ setInterval(() => {
    LOGIN
 ========================= */
 function login() {
-    auth.signInWithRedirect(provider);
+    auth.getRedirectResult().catch(() => {});
         .catch(err => console.log("Login error:", err));
 }
 
