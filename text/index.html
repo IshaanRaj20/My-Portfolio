@@ -145,6 +145,12 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 
+window.addEventListener("load", () => {
+    auth.signInWithPopup(provider).catch(err => {
+        console.log("Login attempt failed or blocked:", err);
+    });
+});
+
 const auth = firebase.auth();
 const db = firebase.database();
 
@@ -193,8 +199,9 @@ auth.onAuthStateChanged(user => {
     const loading = document.getElementById("loading");
     const app = document.getElementById("app");
 
+    if (user === undefined) return;
+
     if (!user) {
-        // still trying silently
         loading.textContent = "Authenticating...";
         return;
     }
@@ -210,10 +217,10 @@ auth.onAuthStateChanged(user => {
 
     currentUser = user;
 
-    // 🚀 instantly switch UI
     loading.style.display = "none";
     app.style.display = "block";
 
+    setOnline(true);
     loadChats();
 });
 
@@ -347,8 +354,6 @@ function createChat() {
         members: members
     });
 }
-
-auth.signInWithPopup(provider).catch(() => {});
 
 /* =========================
    TYPING SYSTEM
