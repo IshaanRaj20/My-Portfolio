@@ -180,25 +180,27 @@ setInterval(() => {
    LOGIN
 ========================= */
 function login() {
-    auth.getRedirectResult().catch(() => {});
-        .catch(err => console.log("Login error:", err));
+    auth.signInWithPopup(provider)
+        .catch(err => {
+            console.log("Login failed:", err);
+        });
 }
 
 /* =========================
-   AUTH STATE
+   AUTO AUTH FLOW
 ========================= */
 auth.onAuthStateChanged(user => {
     const loading = document.getElementById("loading");
     const app = document.getElementById("app");
 
     if (!user) {
-        loading.textContent = "Waiting for login...";
+        // still trying silently
+        loading.textContent = "Authenticating...";
         return;
     }
 
-    const email = (user.email || "").toLowerCase();
-
-    const allowed = allowedEmails.map(e => e.toLowerCase());
+    const email = (user.email || "").trim().toLowerCase();
+    const allowed = allowedEmails.map(e => e.trim().toLowerCase());
 
     if (!allowed.includes(email)) {
         loading.textContent = "Access denied 🚫";
@@ -208,12 +210,9 @@ auth.onAuthStateChanged(user => {
 
     currentUser = user;
 
-    loading.style.opacity = "0";
-
-    setTimeout(() => {
-        loading.style.display = "none";
-        app.style.display = "block";
-    }, 300);
+    // 🚀 instantly switch UI
+    loading.style.display = "none";
+    app.style.display = "block";
 
     loadChats();
 });
