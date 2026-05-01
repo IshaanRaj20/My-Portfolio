@@ -209,6 +209,20 @@
 
 <body>
 
+<script>
+let dots = 0;
+
+function animateLoading() {
+    const loading = document.getElementById("loading");
+    if (!loading) return;
+
+    dots = (dots + 1) % 4;
+    loading.textContent = "Authenticating" + ".".repeat(dots);
+}
+
+setInterval(animateLoading, 300);
+</script>
+
 <div id="loading">Authenticating</div>
 
 <div id="app">
@@ -252,26 +266,16 @@ const firebaseConfig = {
 
 
 firebase.initializeApp(firebaseConfig);
-
-// 🔁 Animated "Authenticating..."
-let dots = 0;
-
-setInterval(() => {
-    const loading = document.getElementById("loading");
-    if (!loading) return;
-
-    dots = (dots + 1) % 4;
-    loading.innerText = "Authenticating" + ".".repeat(dots);
-}, 300);
+auth.getRedirectResult().catch(() => {});
 
 // ⚡ Keep user logged in
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
 // 🔥 Auto login attempt
-if (!auth.currentUser) {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithPopup(provider);
-}
+const provider = new firebase.auth.GoogleAuthProvider();
+
+// try silent login first
+auth.signInWithRedirect(provider);
 
 const auth = firebase.auth();
 const db = firebase.database();
@@ -295,12 +299,12 @@ auth.onAuthStateChanged(user => {
     const loading = document.getElementById("loading");
     const app = document.getElementById("app");
 
-    // still waiting for login
+    // still loading → keep animation running
     if (!user) return;
 
-    // 🚫 block wrong emails
+    // 🚫 block emails
     if (!user.email || !allowedEmails.includes(user.email.toLowerCase())) {
-        loading.innerText = "Access denied 🚫";
+        loading.textContent = "Access denied 🚫";
         auth.signOut();
         return;
     }
@@ -308,10 +312,12 @@ auth.onAuthStateChanged(user => {
     // ✅ success
     currentUser = user;
 
-    document.getElementById("userDisplay").innerText = user.displayName;
-
-    loading.style.display = "none";
-    app.style.display = "flex";
+    // smooth transition
+    loading.style.opacity = "0";
+    setTimeout(() => {
+        loading.style.display = "none";
+        app.style.display = "flex";
+    }, 300);
 
     loadChats();
 });
