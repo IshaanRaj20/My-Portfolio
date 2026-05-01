@@ -280,6 +280,13 @@ auth.signInWithRedirect(provider);
 const auth = firebase.auth();
 const db = firebase.database();
 
+setTimeout(() => {
+    if (!currentUser) {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        auth.signInWithPopup(provider);
+    }
+}, 1000);
+
 const allowedEmails = [
   "ishaan.raj111@gmail.com",
   "bhagat.prerna@gmail.com",
