@@ -1,397 +1,288 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Ishaan Teams</title>
+  <meta charset="UTF-8">
+  <title>Ishaan's Portfolio</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#000000">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="android-chrome-192x192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-V498NLWBBK"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
 
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    gtag('config', 'G-V498NLWBBK');
+  </script>
 
-    <style>
-        body {
-            margin:0;
-            font-family: "Segoe UI", sans-serif;
-            background:#f3f2f1;
-        }
-
-        #loading {
-            position:fixed;
-            inset:0;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            font-size:22px;
-            background:#0f172a;
-            color:white;
-        }
-
-        #app {
-            display:none;
-            height:100vh;
-            display:flex;
-        }
-
-        /* LEFT NAV */
-        #nav {
-            width:60px;
-            background:#1f1f1f;
-            color:white;
-            display:flex;
-            flex-direction:column;
-            align-items:center;
-            padding-top:10px;
-        }
-
-        .navItem {
-            width:40px;
-            height:40px;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            margin:10px 0;
-            border-radius:10px;
-            cursor:pointer;
-        }
-
-        .navItem.active {
-            background:#2563eb;
-        }
-
-        /* CHAT LIST */
-        #chatListPanel {
-            width:280px;
-            background:white;
-            border-right:1px solid #ddd;
-            display:flex;
-            flex-direction:column;
-        }
-
-        #chatListHeader {
-            padding:15px;
-            font-size:18px;
-            font-weight:bold;
-            border-bottom:1px solid #eee;
-        }
-
-        .chatItem {
-            display:flex;
-            padding:12px;
-            gap:10px;
-            cursor:pointer;
-            border-bottom:1px solid #eee;
-            align-items:center;
-        }
-
-        .chatItem:hover {
-            background:#e8f0fe;
-        }
-
-        .chatItem.active {
-            background:#dbeafe;
-        }
-
-        .avatar {
-            width:40px;
-            height:40px;
-            border-radius:50%;
-            background:#2563eb;
-            color:white;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            font-weight:bold;
-        }
-
-        .chatInfo {
-            flex:1;
-        }
-
-        .chatTop {
-            display:flex;
-            justify-content:space-between;
-            font-size:14px;
-        }
-
-        .chatName {
-            font-weight:600;
-        }
-
-        .preview {
-            font-size:12px;
-            color:#666;
-        }
-
-        /* MAIN CHAT */
-        #chatContainer {
-            flex:1;
-            display:flex;
-            flex-direction:column;
-        }
-
-        #chatHeader {
-            padding:15px;
-            border-bottom:1px solid #ddd;
-            font-weight:bold;
-            background:white;
-        }
-
-        #chat {
-            flex:1;
-            padding:20px;
-            overflow-y:auto;
-        }
-
-        .msgRow {
-            display:flex;
-            gap:10px;
-            margin:10px 0;
-            align-items:flex-end;
-        }
-
-        .meRow {
-            flex-direction:row-reverse;
-        }
-
-        .avatar.small {
-            width:30px;
-            height:30px;
-            font-size:12px;
-        }
-
-        .msgBubble {
-            background:white;
-            padding:10px;
-            border-radius:10px;
-            max-width:60%;
-            box-shadow:0 1px 2px rgba(0,0,0,0.1);
-        }
-
-        .meRow .msgBubble {
-            background:#dbeafe;
-        }
-
-        .msgName {
-            font-size:12px;
-            font-weight:bold;
-            color:#2563eb;
-        }
-
-        .msgTime {
-            font-size:10px;
-            color:#999;
-            margin-top:4px;
-        }
-
-        /* INPUT */
-        #inputArea {
-            display:flex;
-            padding:10px;
-            background:white;
-            border-top:1px solid #ddd;
-        }
-
-        #msg {
-            flex:1;
-            padding:10px;
-            border:1px solid #ccc;
-            border-radius:6px;
-        }
-
-        button {
-            margin-left:8px;
-            padding:10px 16px;
-            background:#2563eb;
-            color:white;
-            border:none;
-            border-radius:6px;
-            cursor:pointer;
-        }
-    </style>
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+      })(window, document, "clarity", "script", "wjgudf9jaf");
+  </script>
 </head>
+
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js")
+    .then(() => console.log("Service Worker Registered"));
+}
+</script>
 
 <body>
 
-<div id="loading">Authenticating...</div>
+<nav>
+  <h3>Ishaan Raj's Portfolio</h3>
+</nav>
 
-<div id="app">
-
-    <div id="nav">
-        <div class="navItem active">💬</div>
-    </div>
-
-    <div id="chatListPanel">
-        <div id="chatListHeader">Chats</div>
-        <div id="chatList"></div>
-        <button onclick="createChat()">+ New Chat</button>
-        <p id="userDisplay" style="padding:10px;"></p>
-        <button onclick="login()">Login</button>
-    </div>
-
-    <div id="chatContainer">
-        <div id="chatHeader">Select a chat</div>
-        <div id="chat"></div>
-
-        <div id="inputArea">
-            <input id="msg" placeholder="Type a message...">
-            <button onclick="send()">Send</button>
-        </div>
-    </div>
-
-</div>
-
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
+<button id="installBtn" style="
+  position:fixed;
+  top:10px;
+  right:10px;
+  padding:10px 16px;
+  background:#001eff;
+  color:#fff;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+">
+  Install App
+</button>
 
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyDp1LSm2HlZ3xBDlwBPnEU62Es_KoyavUw",
-  authDomain: "secret-chat-6de59.firebaseapp.com",
-  projectId: "secret-chat-6de59",
-  storageBucket: "secret-chat-6de59.firebasestorage.app",
-  messagingSenderId: "107760706349",
-  appId: "1:107760706349:web:aad5387e7d0003d90ca9a4"
-};
+let deferredPrompt;
+const installBtn = document.getElementById("installBtn");
 
+// Hide at start
+installBtn.style.display = "none";
 
-firebase.initializeApp(firebaseConfig);
-
-const auth = firebase.auth();
-const db = firebase.database();
-
-const allowedEmails = [
-  "ishaan.raj111@gmail.com",
-  "bhagat.prerna@gmail.com",
-  "rakesh.chourasia@gmail.com",
-  "3121@student.goldendoorschool.org"
-];
-
-let currentUser = null;
-let currentChatId = null;
-
-function login() {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithPopup(provider);
+// 🔍 Check if app is already installed
+function isInstalled() {
+  return window.matchMedia('(display-mode: standalone)').matches 
+         || window.navigator.standalone === true
+         || localStorage.getItem("appInstalled") === "true";
 }
 
-auth.onAuthStateChanged(user => {
-    if (!user) return;
+// 🎯 Update button UI
+function updateButton() {
+  installBtn.style.display = "block";
 
-    if (!allowedEmails.includes(user.email)) {
-        alert("Access denied");
-        auth.signOut();
-        return;
+  if (isInstalled()) {
+    installBtn.innerText = "Open App";
+  } else {
+    installBtn.innerText = "Install App";
+  }
+}
+
+// 📦 When install is available
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+
+  if (!isInstalled()) {
+    installBtn.style.display = "block";
+  }
+});
+
+// 📲 When user installs the app (REAL detection)
+window.addEventListener("appinstalled", () => {
+  console.log("App installed!");
+
+  localStorage.setItem("appInstalled", "true"); // remember it
+  updateButton();
+});
+
+// 🧠 Button click behavior
+installBtn.addEventListener("click", async () => {
+
+  // If already installed → open app
+  if (isInstalled()) {
+    window.location.href = "/";
+    return;
+  }
+
+  if (!deferredPrompt) return;
+
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+
+  if (outcome === "accepted") {
+    localStorage.setItem("appInstalled", "true");
+    installBtn.innerText = "Open App";
+  }
+
+  deferredPrompt = null;
+});
+
+// 🚀 Run on page load
+window.addEventListener("load", updateButton);
+</script>
+
+<div class="bg-decor">
+  <div class="blob blob1"></div>
+  <div class="blob blob2"></div>
+</div>
+
+<div class="hero fade">
+  <h1>Hi, I'm <span>Ishaan Raj</span></h1>
+  <p id="typing-text"></p>
+  
+  <div class="badges">
+    <span class="badge">Web Development</span>
+    <span class="badge">UI Design</span>
+    <span class="badge">Creative Thinking</span>
+    <span class="badge">Problem Solving</span>
+  </div>
+</div>
+
+<section class="fade">
+  <h2>About Me</h2>
+  <p class="section-text">
+    I'm a student who enjoys exploring technology and building things on the web. 
+    I like experimenting with design, improving how things look and feel, and turning ideas into real projects.
+    <br><br>
+    I’m always trying to learn more and challenge myself, whether it’s through coding or problem solving. 
+    Outside of that, I enjoy playing sports like cricket and tennis, and staying active.
+    <br><br>
+    I’m excited to keep growing my skills and sharing my work with others.
+    I believe that with creativity and dedication, I can build amazing things and make a positive impact in the world.
+  </p>
+  </section>
+
+<section id="projects" class="fade">
+  <h2>Projects and Games</h2>
+
+  <div class="projects">
+
+    <div class="card">
+      <div class="card-row">
+
+        <img src="SpaceBlast.png" alt="Space Blast" class="project-img">
+
+        <div class="project-content">
+          <h3>Space Blast</h3>
+          <br/>
+
+          <p>
+            A fun and engaging space-themed game where players blast other ships and get new highscores.
+          </p>
+
+          <div class="badges-row">
+            <span class="badge">Game</span>
+            <span class="badge">Windows</span>
+            <span class="badge">Launch Date: March 25, 2026</span>
+          </div>
+
+          <div style="margin-top:15px;">
+            <a href="https://thedeveloper20.itch.io/space-blast" target="_blank">
+              Download from itch.io
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-row">
+        
+        <img src="PingPong.jpg" alt="Ping Pong" class="project-img">
+        
+        <div class="card-content">
+          <h3>Ping Pong</h3>
+        <br/>
+      
+        <p>
+          A simple and fun ping pong game with smooth controls and classic gameplay.
+        </p>
+
+        <div style="margin-top:10px;">
+          <span class="badge">Game</span>
+          <span class="badge">Windows</span>
+          <span class="badge">Launch Date: April 2, 2026</span>
+        </div>
+
+        <div style="margin-top:15px;">
+          <a href="https://thedeveloper20.itch.io/ping-pong" target="_blank">
+            Download from itch.io
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section class="fade">
+  <h2>Contact</h2>
+  <div class="contact">
+    <a href="https://mail.google.com/mail/?view=cm&fs=1&to=zenithish.raj@gmail.com" target="_blank">
+  Send Feedback
+</a>
+    <a href="https://github.com/IshaanRaj20" target="_blank">GitHub</a>
+  </div>
+</section>
+
+<footer>
+  © 2026 Ishaan Raj | Built with HTML, CSS, and JavaScript | All rights reserved
+</footer>
+
+<script>
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add("show");
     }
-
-    currentUser = user;
-    document.getElementById("userDisplay").innerText = user.displayName;
-
-    document.getElementById("loading").style.display = "none";
-    document.getElementById("app").style.display = "flex";
-
-    loadChats();
+  });
+}, {
+  threshold: 0.15
 });
 
-function loadChats() {
-    const chatList = document.getElementById("chatList");
-    chatList.innerHTML = "";
-
-    db.ref("chats").on("child_added", snap => {
-        const chat = snap.val();
-
-        if (!chat.members || !chat.members[currentUser.email]) return;
-
-        const div = document.createElement("div");
-        div.className = "chatItem";
-
-        div.innerHTML = `
-            <div class="avatar">${(chat.name || "C").charAt(0)}</div>
-            <div class="chatInfo">
-                <div class="chatTop">
-                    <span class="chatName">${chat.name || "Chat"}</span>
-                    <span class="time">now</span>
-                </div>
-                <div class="preview">Click to open</div>
-            </div>
-        `;
-
-        div.onclick = () => {
-            document.querySelectorAll(".chatItem").forEach(e => e.classList.remove("active"));
-            div.classList.add("active");
-            openChat(snap.key);
-        };
-
-        chatList.appendChild(div);
-    });
-}
-
-function openChat(chatId) {
-    currentChatId = chatId;
-
-    const chatDiv = document.getElementById("chat");
-    chatDiv.innerHTML = "";
-
-    db.ref("chats/" + chatId + "/messages").off();
-
-    db.ref("chats/" + chatId + "/messages").on("child_added", snap => {
-        const data = snap.val() || {};
-
-        const sender = data.sender || "Unknown";
-        const text = data.text || "";
-        const time = data.time ? new Date(data.time).toLocaleTimeString() : "";
-
-        const isMe = sender === currentUser.email;
-
-        const msgHTML = `
-            <div class="msgRow ${isMe ? 'meRow' : ''}">
-                <div class="avatar small">${sender.charAt(0).toUpperCase()}</div>
-                <div class="msgBubble">
-                    <div class="msgName">${sender}</div>
-                    <div>${text}</div>
-                    <div class="msgTime">${time}</div>
-                </div>
-            </div>
-        `;
-
-        chatDiv.innerHTML += msgHTML;
-        chatDiv.scrollTop = chatDiv.scrollHeight;
-    });
-}
-
-function send() {
-    const input = document.getElementById("msg");
-    const text = input.value.trim();
-
-    if (!text || !currentChatId) return;
-
-    db.ref("chats/" + currentChatId + "/messages").push({
-        sender: currentUser.email,
-        text: text,
-        time: Date.now()
-    });
-
-    input.value = "";
-}
-
-document.getElementById("msg").addEventListener("keypress", e => {
-    if (e.key === "Enter") send();
+document.querySelectorAll('.fade').forEach(el => {
+  observer.observe(el);
 });
+</script>
 
-function createChat() {
-    const emails = prompt("Enter emails (comma separated):");
-    if (!emails) return;
+<script>
+window.addEventListener("load", () => {
+  const text = "Curious, building, and always improving.";
+  let index = 0;
+  const el = document.getElementById("typing-text");
 
-    const list = emails.split(",").map(e => e.trim());
-    list.push(currentUser.email);
+  el.innerHTML = ""; // clear anything already there
 
-    const members = {};
-    list.forEach(e => members[e] = true);
+  function typeEffect() {
+    if (index < text.length) {
+      el.innerHTML += text.charAt(index);
+      index++;
+      setTimeout(typeEffect, 40);
+    } else {
+      setTimeout(() => {
+        el.classList.add("done");
+      }, 500);
+    }
+  }
 
-    const name = prompt("Chat name:");
+  typeEffect();
+});
+</script>
 
-    db.ref("chats").push({
-        name: name || "Chat",
-        members: members
-    });
-}
+<script>
+window.addEventListener("scroll", () => {
+  const hero = document.querySelector(".hero");
+  let offset = window.scrollY;
+
+  hero.style.transform = `translateY(${offset * 0.2}px)`;
+  hero.style.opacity = 1 - offset / 500;
+});
 </script>
 
 </body>
