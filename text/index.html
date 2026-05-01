@@ -1,246 +1,121 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Ishaan Teams</title>
-
+    <title>Secret Chat</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <style>
         body {
-            margin:0;
+            margin: 0;
             font-family: "Segoe UI", sans-serif;
-            background:#f3f2f1;
+            background: #f3f2f1;
         }
 
         #loading {
-            position:fixed;
-            inset:0;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            font-size:22px;
-            background:#0f172a;
-            color:white;
+            position: fixed;
+            inset: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            background: white;
+            transition: 0.3s;
         }
 
         #app {
-            display:none;
-            height:100vh;
-            display:flex;
+            display: none;
         }
 
-        /* LEFT NAV */
-        #nav {
-            width:60px;
-            background:#1f1f1f;
-            color:white;
-            display:flex;
-            flex-direction:column;
-            align-items:center;
-            padding-top:10px;
-        }
-
-        .navItem {
-            width:40px;
-            height:40px;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            margin:10px 0;
-            border-radius:10px;
-            cursor:pointer;
-        }
-
-        .navItem.active {
-            background:#2563eb;
-        }
-
-        /* CHAT LIST */
+        /* 🧠 TEAMS STYLE LAYOUT */
         #chatListPanel {
-            width:280px;
-            background:white;
-            border-right:1px solid #ddd;
-            display:flex;
-            flex-direction:column;
+            width: 280px;
+            background: #ffffff;
+            height: 100vh;
+            float: left;
+            border-right: 1px solid #ddd;
         }
 
-        #chatListHeader {
-            padding:15px;
-            font-size:18px;
-            font-weight:bold;
-            border-bottom:1px solid #eee;
-        }
-
-        .chatItem {
-            display:flex;
-            padding:12px;
-            gap:10px;
-            cursor:pointer;
-            border-bottom:1px solid #eee;
-            align-items:center;
-        }
-
-        .chatItem:hover {
-            background:#e8f0fe;
-        }
-
-        .chatItem.active {
-            background:#dbeafe;
-        }
-
-        .avatar {
-            width:40px;
-            height:40px;
-            border-radius:50%;
-            background:#2563eb;
-            color:white;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            font-weight:bold;
-        }
-
-        .chatInfo {
-            flex:1;
-        }
-
-        .chatTop {
-            display:flex;
-            justify-content:space-between;
-            font-size:14px;
-        }
-
-        .chatName {
-            font-weight:600;
-        }
-
-        .preview {
-            font-size:12px;
-            color:#666;
-        }
-
-        /* MAIN CHAT */
         #chatContainer {
-            flex:1;
-            display:flex;
-            flex-direction:column;
+            margin-left: 280px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #fafafa;
         }
 
         #chatHeader {
-            padding:15px;
-            border-bottom:1px solid #ddd;
-            font-weight:bold;
-            background:white;
+            padding: 12px;
+            font-weight: 600;
+            border-bottom: 1px solid #ddd;
+            background: white;
         }
 
         #chat {
-            flex:1;
-            padding:20px;
-            overflow-y:auto;
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
         }
 
-        .msgRow {
-            display:flex;
-            gap:10px;
-            margin:10px 0;
-            align-items:flex-end;
-        }
-
-        .meRow {
-            flex-direction:row-reverse;
-        }
-
-        .avatar.small {
-            width:30px;
-            height:30px;
-            font-size:12px;
-        }
-
-        .msgBubble {
-            background:white;
-            padding:10px;
-            border-radius:10px;
-            max-width:60%;
-            box-shadow:0 1px 2px rgba(0,0,0,0.1);
-        }
-
-        .meRow .msgBubble {
-            background:#dbeafe;
-        }
-
-        .msgName {
-            font-size:12px;
-            font-weight:bold;
-            color:#2563eb;
-        }
-
-        .msgTime {
-            font-size:10px;
-            color:#999;
-            margin-top:4px;
-        }
-
-        /* INPUT */
         #inputArea {
-            display:flex;
-            padding:10px;
-            background:white;
-            border-top:1px solid #ddd;
+            display: flex;
+            padding: 10px;
+            background: white;
+            border-top: 1px solid #ddd;
         }
 
-        #msg {
-            flex:1;
-            padding:10px;
-            border:1px solid #ccc;
-            border-radius:6px;
+        #inputArea input {
+            flex: 1;
+            padding: 10px;
         }
 
         button {
-            margin-left:8px;
-            padding:10px 16px;
-            background:#2563eb;
-            color:white;
-            border:none;
-            border-radius:6px;
-            cursor:pointer;
+            margin-left: 10px;
+            padding: 10px;
+        }
+
+        /* 🧠 TEAMS MESSAGE STYLE */
+        .msgRow {
+            padding: 6px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .meRow {
+            background: #eef6ff;
+        }
+
+        .status {
+            font-size: 12px;
+            color: gray;
+        }
+
+        .onlineDot {
+            width: 8px;
+            height: 8px;
+            background: green;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 6px;
         }
     </style>
 </head>
 
 <body>
 
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-    let dots = 0;
-
-    setInterval(() => {
-        const loading = document.getElementById("loading");
-        if (!loading) return;
-
-        dots = (dots + 1) % 4;
-        loading.textContent = "Authenticating" + ".".repeat(dots);
-    }, 200);
-});
-</script>
-
 <div id="loading">Authenticating</div>
 
 <div id="app">
-
-    <div id="nav">
-        <div class="navItem active">💬</div>
-    </div>
 
     <div id="chatListPanel">
         <div id="chatListHeader">Chats</div>
         <div id="chatList"></div>
         <button onclick="createChat()">+ New Chat</button>
-        <p id="userDisplay" style="padding:10px;"></p>
     </div>
 
     <div id="chatContainer">
         <div id="chatHeader">Select a chat</div>
         <div id="chat"></div>
+
+        <div id="typing"></div>
 
         <div id="inputArea">
             <input id="msg" placeholder="Type a message...">
@@ -250,11 +125,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
+<!-- 🔥 FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-database-compat.js"></script>
 
 <script>
+/* =========================
+   FIREBASE INIT
+========================= */
 const firebaseConfig = {
   apiKey: "AIzaSyDp1LSm2HlZ3xBDlwBPnEU62Es_KoyavUw",
   authDomain: "secret-chat-6de59.firebaseapp.com",
@@ -264,71 +143,91 @@ const firebaseConfig = {
   appId: "1:107760706349:web:aad5387e7d0003d90ca9a4"
 };
 
-
 firebase.initializeApp(firebaseConfig);
-auth.getRedirectResult().catch(() => {});
-
-// ⚡ Keep user logged in
-auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-
-// 🔥 Auto login attempt
-const provider = new firebase.auth.GoogleAuthProvider();
-
-// try silent login first
-auth.signInWithRedirect(provider);
 
 const auth = firebase.auth();
 const db = firebase.database();
 
-setTimeout(() => {
-    if (!currentUser) {
-        const provider = new firebase.auth.GoogleAuthProvider();
-        auth.signInWithPopup(provider);
-    }
-}, 1000);
-
-const allowedEmails = [
-  "ishaan.raj111@gmail.com",
-  "bhagat.prerna@gmail.com",
-  "rakesh.chourasia@gmail.com",
-  "3121@student.goldendoorschool.org"
-];
-
+/* =========================
+   STATE
+========================= */
 let currentUser = null;
 let currentChatId = null;
 
+const provider = new firebase.auth.GoogleAuthProvider();
+
+const allowedEmails = [
+    "ishaan.raj111@gmail.com",
+    "bhagat.prerna@gmail.com",
+    "rakesh.chourasia@gmail.com",
+    "3121@student.goldendoorschool.org"
+];
+
+/* =========================
+   LOADING
+========================= */
+let dots = 0;
+
+setInterval(() => {
+    const loading = document.getElementById("loading");
+    if (!loading) return;
+
+    dots = (dots + 1) % 4;
+    loading.textContent = "Authenticating" + ".".repeat(dots);
+}, 200);
+
+/* =========================
+   LOGIN
+========================= */
 function login() {
-    const provider = new firebase.auth.GoogleAuthProvider();
     auth.signInWithPopup(provider);
 }
 
+/* =========================
+   AUTH STATE
+========================= */
 auth.onAuthStateChanged(user => {
     const loading = document.getElementById("loading");
     const app = document.getElementById("app");
 
-    // still loading → keep animation running
     if (!user) return;
 
-    // 🚫 block emails
-    if (!user.email || !allowedEmails.includes(user.email.toLowerCase())) {
+    if (!allowedEmails.includes(user.email)) {
         loading.textContent = "Access denied 🚫";
         auth.signOut();
         return;
     }
 
-    // ✅ success
     currentUser = user;
 
-    // smooth transition
     loading.style.opacity = "0";
     setTimeout(() => {
         loading.style.display = "none";
-        app.style.display = "flex";
+        app.style.display = "block";
     }, 300);
 
+    setOnline(true);
     loadChats();
 });
 
+/* =========================
+   ONLINE STATUS
+========================= */
+function setOnline(status) {
+    if (!currentUser) return;
+
+    db.ref("status/" + currentUser.email.replace(".", "_")).set({
+        online: status
+    });
+}
+
+window.addEventListener("beforeunload", () => {
+    setOnline(false);
+});
+
+/* =========================
+   LOAD CHATS
+========================= */
 function loadChats() {
     const chatList = document.getElementById("chatList");
     chatList.innerHTML = "";
@@ -339,62 +238,64 @@ function loadChats() {
         if (!chat.members || !chat.members[currentUser.email]) return;
 
         const div = document.createElement("div");
-        div.className = "chatItem";
+        div.innerHTML = chat.name + `<span class="onlineDot"></span>`;
 
-        div.innerHTML = `
-            <div class="avatar">${(chat.name || "C").charAt(0)}</div>
-            <div class="chatInfo">
-                <div class="chatTop">
-                    <span class="chatName">${chat.name || "Chat"}</span>
-                    <span class="time">now</span>
-                </div>
-                <div class="preview">Click to open</div>
-            </div>
-        `;
-
-        div.onclick = () => {
-            document.querySelectorAll(".chatItem").forEach(e => e.classList.remove("active"));
-            div.classList.add("active");
-            openChat(snap.key);
-        };
+        div.onclick = () => openChat(snap.key);
 
         chatList.appendChild(div);
     });
 }
 
+/* =========================
+   OPEN CHAT
+========================= */
 function openChat(chatId) {
     currentChatId = chatId;
 
     const chatDiv = document.getElementById("chat");
     chatDiv.innerHTML = "";
 
-    db.ref("chats/" + chatId + "/messages").off();
+    db.ref("chats/" + chatId + "/messages")
+    .limitToLast(50)
+    .on("child_added", snap => {
+        const data = snap.val();
 
-    db.ref("chats/" + chatId + "/messages").on("child_added", snap => {
-        const data = snap.val() || {};
+        const sender = data.sender;
+        const text = data.text;
 
-        const sender = data.sender || "Unknown";
-        const text = data.text || "";
-        const time = data.time ? new Date(data.time).toLocaleTimeString() : "";
+        let status = "Sent";
+        if (data.delivered) status = "Delivered";
+        if (data.seen) status = "Seen";
 
-        const isMe = sender === currentUser.email;
+        const msg = document.createElement("div");
+        msg.className = "msgRow";
+        if (sender === currentUser.email) msg.classList.add("meRow");
 
-        const msgHTML = `
-            <div class="msgRow ${isMe ? 'meRow' : ''}">
-                <div class="avatar small">${sender.charAt(0).toUpperCase()}</div>
-                <div class="msgBubble">
-                    <div class="msgName">${sender}</div>
-                    <div>${text}</div>
-                    <div class="msgTime">${time}</div>
-                </div>
-            </div>
+        msg.innerHTML = `
+            <div><b>${sender}</b></div>
+            <div>${text}</div>
+            <div class="status">${status}</div>
         `;
 
-        chatDiv.innerHTML += msgHTML;
+        chatDiv.appendChild(msg);
         chatDiv.scrollTop = chatDiv.scrollHeight;
+
+        // mark seen
+        if (sender !== currentUser.email) {
+            snap.ref.update({ seen: true });
+
+            if (document.hidden) {
+                new Notification("New message", { body: text });
+            }
+        }
     });
+
+    enableTyping();
 }
 
+/* =========================
+   SEND MESSAGE
+========================= */
 function send() {
     const input = document.getElementById("msg");
     const text = input.value.trim();
@@ -404,16 +305,24 @@ function send() {
     db.ref("chats/" + currentChatId + "/messages").push({
         sender: currentUser.email,
         text: text,
-        time: Date.now()
+        time: Date.now(),
+        delivered: true,
+        seen: false
     });
 
     input.value = "";
 }
 
+/* =========================
+   ENTER KEY
+========================= */
 document.getElementById("msg").addEventListener("keypress", e => {
     if (e.key === "Enter") send();
 });
 
+/* =========================
+   CREATE CHAT
+========================= */
 function createChat() {
     const emails = prompt("Enter emails (comma separated):");
     if (!emails) return;
@@ -431,6 +340,39 @@ function createChat() {
         members: members
     });
 }
+
+/* =========================
+   TYPING SYSTEM
+========================= */
+function enableTyping() {
+    const input = document.getElementById("msg");
+
+    input.addEventListener("input", () => {
+        db.ref("typing/" + currentChatId + "/" + currentUser.email.replace(".", "_"))
+            .set(true);
+
+        setTimeout(() => {
+            db.ref("typing/" + currentChatId + "/" + currentUser.email.replace(".", "_"))
+                .remove();
+        }, 1000);
+    });
+
+    db.ref("typing/" + currentChatId).on("value", snap => {
+        const typing = snap.val();
+        const box = document.getElementById("typing");
+
+        if (typing) {
+            box.innerText = "Someone is typing...";
+        } else {
+            box.innerText = "";
+        }
+    });
+}
+
+/* =========================
+   NOTIFICATIONS
+========================= */
+Notification.requestPermission();
 </script>
 
 </body>
