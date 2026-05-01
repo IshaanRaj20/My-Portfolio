@@ -190,9 +190,16 @@ auth.onAuthStateChanged(user => {
     const loading = document.getElementById("loading");
     const app = document.getElementById("app");
 
-    if (!user) return;
+    if (!user) {
+        loading.textContent = "Waiting for login...";
+        return;
+    }
 
-    if (!allowedEmails.includes(user.email)) {
+    const email = (user.email || "").toLowerCase();
+
+    const allowed = allowedEmails.map(e => e.toLowerCase());
+
+    if (!allowed.includes(email)) {
         loading.textContent = "Access denied 🚫";
         auth.signOut();
         return;
@@ -201,12 +208,12 @@ auth.onAuthStateChanged(user => {
     currentUser = user;
 
     loading.style.opacity = "0";
+
     setTimeout(() => {
         loading.style.display = "none";
         app.style.display = "block";
     }, 300);
 
-    setOnline(true);
     loadChats();
 });
 
@@ -340,6 +347,8 @@ function createChat() {
         members: members
     });
 }
+
+auth.signInWithPopup(provider).catch(() => {});
 
 /* =========================
    TYPING SYSTEM
