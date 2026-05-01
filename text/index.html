@@ -1,60 +1,240 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Ishaan Chat</title>
-  <style>
-    body { margin:0; font-family:sans-serif; background:#0f172a; color:white; display:flex; }
-    
-    #sidebar {
-      width:200px;
-      background:#020617;
-      padding:10px;
-      height:100vh;
-    }
+    <title>Ishaan Teams</title>
 
-    #chatContainer {
-      flex:1;
-      display:flex;
-      flex-direction:column;
-    }
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    #chat {
-      flex:1;
-      overflow-y:auto;
-      padding:10px;
-    }
+    <style>
+        body {
+            margin:0;
+            font-family: "Segoe UI", sans-serif;
+            background:#f3f2f1;
+        }
 
-    #inputArea {
-      display:flex;
-      padding:10px;
-      background:#020617;
-    }
+        #loading {
+            position:fixed;
+            inset:0;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:22px;
+            background:#0f172a;
+            color:white;
+        }
 
-    input { flex:1; padding:10px; }
-    button { padding:10px; margin-left:5px; }
+        #app {
+            display:none;
+            height:100vh;
+            display:flex;
+        }
 
-    .msg { margin:5px 0; }
-    .user { color:#38bdf8; }
-  </style>
+        /* LEFT NAV */
+        #nav {
+            width:60px;
+            background:#1f1f1f;
+            color:white;
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            padding-top:10px;
+        }
+
+        .navItem {
+            width:40px;
+            height:40px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            margin:10px 0;
+            border-radius:10px;
+            cursor:pointer;
+        }
+
+        .navItem.active {
+            background:#2563eb;
+        }
+
+        /* CHAT LIST */
+        #chatListPanel {
+            width:280px;
+            background:white;
+            border-right:1px solid #ddd;
+            display:flex;
+            flex-direction:column;
+        }
+
+        #chatListHeader {
+            padding:15px;
+            font-size:18px;
+            font-weight:bold;
+            border-bottom:1px solid #eee;
+        }
+
+        .chatItem {
+            display:flex;
+            padding:12px;
+            gap:10px;
+            cursor:pointer;
+            border-bottom:1px solid #eee;
+            align-items:center;
+        }
+
+        .chatItem:hover {
+            background:#e8f0fe;
+        }
+
+        .chatItem.active {
+            background:#dbeafe;
+        }
+
+        .avatar {
+            width:40px;
+            height:40px;
+            border-radius:50%;
+            background:#2563eb;
+            color:white;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-weight:bold;
+        }
+
+        .chatInfo {
+            flex:1;
+        }
+
+        .chatTop {
+            display:flex;
+            justify-content:space-between;
+            font-size:14px;
+        }
+
+        .chatName {
+            font-weight:600;
+        }
+
+        .preview {
+            font-size:12px;
+            color:#666;
+        }
+
+        /* MAIN CHAT */
+        #chatContainer {
+            flex:1;
+            display:flex;
+            flex-direction:column;
+        }
+
+        #chatHeader {
+            padding:15px;
+            border-bottom:1px solid #ddd;
+            font-weight:bold;
+            background:white;
+        }
+
+        #chat {
+            flex:1;
+            padding:20px;
+            overflow-y:auto;
+        }
+
+        .msgRow {
+            display:flex;
+            gap:10px;
+            margin:10px 0;
+            align-items:flex-end;
+        }
+
+        .meRow {
+            flex-direction:row-reverse;
+        }
+
+        .avatar.small {
+            width:30px;
+            height:30px;
+            font-size:12px;
+        }
+
+        .msgBubble {
+            background:white;
+            padding:10px;
+            border-radius:10px;
+            max-width:60%;
+            box-shadow:0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .meRow .msgBubble {
+            background:#dbeafe;
+        }
+
+        .msgName {
+            font-size:12px;
+            font-weight:bold;
+            color:#2563eb;
+        }
+
+        .msgTime {
+            font-size:10px;
+            color:#999;
+            margin-top:4px;
+        }
+
+        /* INPUT */
+        #inputArea {
+            display:flex;
+            padding:10px;
+            background:white;
+            border-top:1px solid #ddd;
+        }
+
+        #msg {
+            flex:1;
+            padding:10px;
+            border:1px solid #ccc;
+            border-radius:6px;
+        }
+
+        button {
+            margin-left:8px;
+            padding:10px 16px;
+            background:#2563eb;
+            color:white;
+            border:none;
+            border-radius:6px;
+            cursor:pointer;
+        }
+    </style>
 </head>
+
 <body>
 
-<div id="sidebar">
-  <h3>Rooms</h3>
-  <button onclick="setRoom('general')"># general</button><br>
-  <button onclick="setRoom('random')"># random</button><br><br>
+<div id="loading">Authenticating...</div>
 
-  <button onclick="login()">Login</button>
-  <p id="userDisplay"></p>
-</div>
+<div id="app">
 
-<div id="chatContainer">
-  <div id="chat"></div>
+    <div id="nav">
+        <div class="navItem active">💬</div>
+    </div>
 
-  <div id="inputArea">
-    <input id="msg" placeholder="Type message...">
-    <button onclick="send()">Send</button>
-  </div>
+    <div id="chatListPanel">
+        <div id="chatListHeader">Chats</div>
+        <div id="chatList"></div>
+        <button onclick="createChat()">+ New Chat</button>
+        <p id="userDisplay" style="padding:10px;"></p>
+        <button onclick="login()">Login</button>
+    </div>
+
+    <div id="chatContainer">
+        <div id="chatHeader">Select a chat</div>
+        <div id="chat"></div>
+
+        <div id="inputArea">
+            <input id="msg" placeholder="Type a message...">
+            <button onclick="send()">Send</button>
+        </div>
+    </div>
+
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
@@ -71,75 +251,146 @@ const firebaseConfig = {
   appId: "1:107760706349:web:aad5387e7d0003d90ca9a4"
 };
 
+
 firebase.initializeApp(firebaseConfig);
 
 const auth = firebase.auth();
 const db = firebase.database();
 
-// ✅ STEP 1: Allowed emails (EDIT THESE)
 const allowedEmails = [
-  "bhagt.prerna@gmail.com",
-  "rakesh.chourasia15@gmail.com",
-  "ishaan.raj111@gmail.com"
+  "ishaan.raj111@gmail.com",
+  "bhagat.prerna@gmail.com",
+  "rakesh.chourasia@gmail.com",
+  "3121@student.goldendoorschool.org"
 ];
 
 let currentUser = null;
-let currentRoom = "general";
+let currentChatId = null;
 
 function login() {
-  const provider = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithPopup(provider);
+    const provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(provider);
 }
 
-// ✅ STEP 2: Check if user is allowed
 auth.onAuthStateChanged(user => {
-  if (user) {
+    if (!user) return;
 
-    // 🚫 Block users NOT in your list
     if (!allowedEmails.includes(user.email)) {
-      alert("Access denied 🚫");
-      auth.signOut();
-      return;
+        alert("Access denied");
+        auth.signOut();
+        return;
     }
 
-    // ✅ Allow access
     currentUser = user;
     document.getElementById("userDisplay").innerText = user.displayName;
-    loadMessages();
-  }
+
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("app").style.display = "flex";
+
+    loadChats();
 });
 
-function setRoom(room) {
-  currentRoom = room;
-  document.getElementById("chat").innerHTML = "";
-  loadMessages();
+function loadChats() {
+    const chatList = document.getElementById("chatList");
+    chatList.innerHTML = "";
+
+    db.ref("chats").on("child_added", snap => {
+        const chat = snap.val();
+
+        if (!chat.members || !chat.members[currentUser.email]) return;
+
+        const div = document.createElement("div");
+        div.className = "chatItem";
+
+        div.innerHTML = `
+            <div class="avatar">${(chat.name || "C").charAt(0)}</div>
+            <div class="chatInfo">
+                <div class="chatTop">
+                    <span class="chatName">${chat.name || "Chat"}</span>
+                    <span class="time">now</span>
+                </div>
+                <div class="preview">Click to open</div>
+            </div>
+        `;
+
+        div.onclick = () => {
+            document.querySelectorAll(".chatItem").forEach(e => e.classList.remove("active"));
+            div.classList.add("active");
+            openChat(snap.key);
+        };
+
+        chatList.appendChild(div);
+    });
+}
+
+function openChat(chatId) {
+    currentChatId = chatId;
+
+    const chatDiv = document.getElementById("chat");
+    chatDiv.innerHTML = "";
+
+    db.ref("chats/" + chatId + "/messages").off();
+
+    db.ref("chats/" + chatId + "/messages").on("child_added", snap => {
+        const data = snap.val() || {};
+
+        const sender = data.sender || "Unknown";
+        const text = data.text || "";
+        const time = data.time ? new Date(data.time).toLocaleTimeString() : "";
+
+        const isMe = sender === currentUser.email;
+
+        const msgHTML = `
+            <div class="msgRow ${isMe ? 'meRow' : ''}">
+                <div class="avatar small">${sender.charAt(0).toUpperCase()}</div>
+                <div class="msgBubble">
+                    <div class="msgName">${sender}</div>
+                    <div>${text}</div>
+                    <div class="msgTime">${time}</div>
+                </div>
+            </div>
+        `;
+
+        chatDiv.innerHTML += msgHTML;
+        chatDiv.scrollTop = chatDiv.scrollHeight;
+    });
 }
 
 function send() {
-  const text = document.getElementById("msg").value;
-  if (!text || !currentUser) return;
+    const input = document.getElementById("msg");
+    const text = input.value.trim();
 
-  db.ref("rooms/" + currentRoom).push({
-    name: currentUser.displayName,
-    text: text
-  });
+    if (!text || !currentChatId) return;
 
-  document.getElementById("msg").value = "";
+    db.ref("chats/" + currentChatId + "/messages").push({
+        sender: currentUser.email,
+        text: text,
+        time: Date.now()
+    });
+
+    input.value = "";
 }
 
-function loadMessages() {
-  const chat = document.getElementById("chat");
-  db.ref("rooms/" + currentRoom).off();
+document.getElementById("msg").addEventListener("keypress", e => {
+    if (e.key === "Enter") send();
+});
 
-  db.ref("rooms/" + currentRoom).on("child_added", snap => {
-    const data = snap.val();
-    chat.innerHTML += `
-      <div class="msg">
-        <span class="user">${data.name}:</span> ${data.text}
-      </div>
-    `;
-    chat.scrollTop = chat.scrollHeight;
-  });
+function createChat() {
+    const emails = prompt("Enter emails (comma separated):");
+    if (!emails) return;
+
+    const list = emails.split(",").map(e => e.trim());
+    list.push(currentUser.email);
+
+    const members = {};
+    list.forEach(e => members[e] = true);
+
+    const name = prompt("Chat name:");
+
+    db.ref("chats").push({
+        name: name || "Chat",
+        members: members
+    });
 }
 </script>
 
