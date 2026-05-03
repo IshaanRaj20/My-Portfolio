@@ -1,115 +1,130 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Secret Text</title>
+<title>Blue Teams</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-body {
-    margin: 0;
-    font-family: "Segoe UI", sans-serif;
-    background: #f3f6ff;
-}
+body { margin:0; font-family:"Segoe UI"; background:#eef3ff; }
 
 /* LOADING */
 #loading {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 22px;
-    background: white;
+    position:fixed; inset:0;
+    display:flex; justify-content:center; align-items:center;
+    background:white; font-size:22px;
 }
 
 /* APP */
-#app {
-    display: none;
-    height: 100vh;
+#app { display:none; height:100vh; }
+
+/* TOP BAR */
+#topbar {
+    height:50px;
+    background:#2563eb;
+    color:white;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 15px;
+    font-weight:600;
 }
 
 /* SIDEBAR */
-#chatListPanel {
-    width: 280px;
-    background: #0d2b66;
-    color: white;
-    height: 100vh;
-    float: left;
-}
-
-#chatListHeader {
-    padding: 15px;
-    font-weight: bold;
+#sidebar {
+    width:260px;
+    background:#0d2b66;
+    color:white;
+    height:calc(100vh - 50px);
+    float:left;
+    overflow-y:auto;
 }
 
 .chatItem {
-    padding: 12px;
-    cursor: pointer;
+    padding:12px;
+    display:flex;
+    align-items:center;
+    cursor:pointer;
+}
+.chatItem:hover { background:rgba(255,255,255,0.1); }
+
+/* AVATAR */
+.avatar {
+    width:32px; height:32px;
+    border-radius:50%;
+    background:#3b82f6;
+    display:flex; align-items:center; justify-content:center;
+    margin-right:10px;
+    position:relative;
 }
 
-.chatItem:hover {
-    background: rgba(255,255,255,0.1);
+.onlineDot {
+    position:absolute;
+    bottom:0; right:0;
+    width:8px; height:8px;
+    background:limegreen;
+    border-radius:50%;
 }
 
 /* MAIN */
-#chatContainer {
-    margin-left: 280px;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
+#main {
+    margin-left:260px;
+    height:calc(100vh - 50px);
+    display:flex;
+    flex-direction:column;
 }
 
+/* CHAT HEADER */
 #chatHeader {
-    padding: 12px;
-    background: white;
-    border-bottom: 1px solid #ddd;
+    padding:10px;
+    background:white;
+    border-bottom:1px solid #ddd;
+    display:flex;
+    align-items:center;
+    gap:10px;
 }
 
+/* CHAT */
 #chat {
-    flex: 1;
-    overflow-y: auto;
-    padding: 15px;
+    flex:1;
+    overflow-y:auto;
+    padding:15px;
 }
 
-/* MESSAGES */
+/* MESSAGE */
 .msgRow {
-    max-width: 60%;
-    padding: 10px;
-    margin: 8px 0;
-    background: white;
-    border-radius: 10px;
+    display:flex;
+    margin:8px 0;
 }
 
-.meRow {
-    margin-left: auto;
-    background: #d9e8ff;
+.meRow { justify-content:flex-end; }
+
+.bubble {
+    max-width:60%;
+    padding:10px;
+    border-radius:10px;
+    background:white;
 }
 
-.status {
-    font-size: 11px;
-    color: gray;
-}
+.meRow .bubble { background:#dbeafe; }
+
+.status { font-size:10px; color:gray; }
 
 /* INPUT */
 #inputArea {
-    display: flex;
-    padding: 10px;
-    background: white;
-    border-top: 1px solid #ddd;
+    display:flex;
+    padding:10px;
+    background:white;
+    border-top:1px solid #ddd;
 }
-
-#inputArea input {
-    flex: 1;
-    padding: 10px;
-}
+#inputArea input { flex:1; padding:10px; }
 
 button {
-    margin-left: 10px;
-    padding: 10px;
-    background: #2563eb;
-    color: white;
-    border: none;
-    cursor: pointer;
+    margin-left:10px;
+    padding:10px;
+    background:#2563eb;
+    color:white;
+    border:none;
+    cursor:pointer;
 }
 </style>
 </head>
@@ -120,41 +135,40 @@ button {
 
 <div id="app">
 
-<div id="chatListPanel">
-    <div id="chatListHeader">Chats</div>
+<div id="topbar">
+    <div>💬 Blue Teams</div>
+    <div id="userName"></div>
+</div>
+
+<div id="sidebar">
     <div id="chatList"></div>
     <button onclick="createChat()">+ New Chat</button>
 </div>
 
-<div id="chatContainer">
+<div id="main">
     <div id="chatHeader">Select a chat</div>
     <div id="chat"></div>
-
     <div id="typing"></div>
 
     <div id="inputArea">
-        <input id="msg" placeholder="Type a message...">
+        <input id="msg">
         <button onclick="send()">Send</button>
     </div>
 </div>
 
 </div>
 
-<!-- FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-database-compat.js"></script>
 
 <script>
 const firebaseConfig = {
-  apiKey: "AIzaSyDp1LSm2HlZ3xBDlwBPnEU62Es_KoyavUw",
-  authDomain: "secret-chat-6de59.firebaseapp.com",
-  projectId: "secret-chat-6de59",
-  storageBucket: "secret-chat-6de59.firebasestorage.app",
-  messagingSenderId: "107760706349",
-  appId: "1:107760706349:web:aad5387e7d0003d90ca9a4"
+  apiKey:"YOUR_KEY",
+  authDomain:"secret-chat-6de59.firebaseapp.com",
+  projectId:"secret-chat-6de59",
+  databaseURL:"https://secret-chat-6de59-default-rtdb.firebaseio.com"
 };
-
 
 firebase.initializeApp(firebaseConfig);
 
@@ -165,184 +179,144 @@ const provider = new firebase.auth.GoogleAuthProvider();
 let currentUser = null;
 let currentChatId = null;
 
-const allowedEmails = [
-    "ishaan.raj111@gmail.com",
-    "bhagat.prerna@gmail.com",
-    "rakesh.chourasia@gmail.com",
-    "3121@student.goldendoorschool.org"
-];
-
-/* LOADING */
-let dots = 0;
-setInterval(() => {
-    const el = document.getElementById("loading");
-    if (!el) return;
-    dots = (dots + 1) % 4;
-    el.textContent = "Authenticating" + ".".repeat(dots);
-}, 300);
-
 /* AUTH */
-auth.onAuthStateChanged(user => {
-    const loading = document.getElementById("loading");
-    const app = document.getElementById("app");
-
-    if (!user) return;
-
-    const email = (user.email || "").toLowerCase();
-    const allowed = allowedEmails.map(e => e.toLowerCase());
-
-    if (!allowed.includes(email)) {
-        loading.textContent = "Access denied 🚫";
-        auth.signOut();
-        return;
-    }
+auth.onAuthStateChanged(user=>{
+    if(!user) return;
 
     currentUser = user;
 
-    loading.style.display = "none";
-    app.style.display = "block";
+    document.getElementById("loading").style.display="none";
+    document.getElementById("app").style.display="block";
+    document.getElementById("userName").textContent = user.email;
 
     setOnline(true);
     loadChats();
 });
 
-/* SAFE AUTO LOGIN */
-window.addEventListener("load", () => {
-    if (!auth.currentUser) {
-        auth.signInWithPopup(provider).catch(() => {});
+window.addEventListener("load",()=>{
+    if(!auth.currentUser){
+        auth.signInWithPopup(provider).catch(()=>{});
     }
 });
 
-/* ONLINE STATUS */
-function setOnline(status) {
-    if (!currentUser) return;
+/* ONLINE */
+function setOnline(status){
+    db.ref("status/"+key()).set({online:status});
+}
 
-    db.ref("status/" + currentUser.email.replace(/\./g, "_")).set({
-        online: status
-    });
+/* KEY SAFE */
+function key(){
+    return currentUser.email.replace(/\./g,"_");
 }
 
 /* LOAD CHATS */
-function loadChats() {
-    const chatList = document.getElementById("chatList");
-    chatList.innerHTML = "";
-
-    db.ref("chats").on("child_added", snap => {
+function loadChats(){
+    db.ref("chats").on("child_added",snap=>{
         const chat = snap.val();
-
-        if (!chat.members || !chat.members[currentUser.email]) return;
+        if(!chat.members[key()]) return;
 
         const div = document.createElement("div");
-        div.className = "chatItem";
-        div.textContent = chat.name;
+        div.className="chatItem";
 
-        div.onclick = () => openChat(snap.key);
+        div.innerHTML = `
+        <div class="avatar">${chat.name[0]}
+            <div class="onlineDot"></div>
+        </div>
+        ${chat.name}
+        `;
 
-        chatList.appendChild(div);
+        div.onclick=()=>openChat(snap.key);
+
+        document.getElementById("chatList").appendChild(div);
     });
 }
 
 /* OPEN CHAT */
-function openChat(chatId) {
-    currentChatId = chatId;
+function openChat(id){
+    currentChatId=id;
 
-    const chatDiv = document.getElementById("chat");
-    chatDiv.innerHTML = "";
+    const chat = document.getElementById("chat");
+    chat.innerHTML="";
 
-    db.ref("chats/" + chatId + "/messages").off();
+    db.ref("chats/"+id+"/messages").off();
 
-    db.ref("chats/" + chatId + "/messages")
-    .limitToLast(50)
-    .on("child_added", snap => {
-        const data = snap.val();
+    db.ref("chats/"+id+"/messages").limitToLast(50)
+    .on("child_added",snap=>{
+        const m = snap.val();
 
-        const sender = data.sender;
-        const text = data.text;
+        const row=document.createElement("div");
+        row.className="msgRow";
+        if(m.sender===currentUser.email) row.classList.add("meRow");
 
-        const msg = document.createElement("div");
-        msg.className = "msgRow";
-
-        if (sender === currentUser.email) {
-            msg.classList.add("meRow");
-        }
-
-        msg.innerHTML = `
-            <div><b>${sender}</b></div>
-            <div>${text}</div>
-            <div class="status">${data.seen ? "Seen" : "Sent"}</div>
+        row.innerHTML=`
+        <div class="bubble">
+            <b>${m.sender}</b><br>
+            ${m.text}
+            <div class="status">${m.seen?"Seen":"Delivered"}</div>
+        </div>
         `;
 
-        chatDiv.appendChild(msg);
-        chatDiv.scrollTop = chatDiv.scrollHeight;
+        chat.appendChild(row);
+        chat.scrollTop=chat.scrollHeight;
 
-        if (sender !== currentUser.email) {
-            snap.ref.update({ seen: true });
+        if(m.sender!==currentUser.email){
+            snap.ref.update({seen:true});
         }
     });
 
-    enableTyping();
+    typingSystem();
 }
 
 /* SEND */
-function send() {
-    const input = document.getElementById("msg");
-    const text = input.value.trim();
+function send(){
+    const input=document.getElementById("msg");
+    const text=input.value.trim();
+    if(!text||!currentChatId) return;
 
-    if (!text || !currentChatId) return;
-
-    db.ref("chats/" + currentChatId + "/messages").push({
-        sender: currentUser.email,
-        text: text,
-        time: Date.now(),
-        seen: false
+    db.ref("chats/"+currentChatId+"/messages").push({
+        sender:currentUser.email,
+        text:text,
+        seen:false
     });
 
-    input.value = "";
-}
-
-/* ENTER */
-document.getElementById("msg").addEventListener("keypress", e => {
-    if (e.key === "Enter") send();
-});
-
-/* CREATE CHAT */
-function createChat() {
-    const emails = prompt("Enter emails:");
-    if (!emails) return;
-
-    const list = emails.split(",").map(e => e.trim());
-    list.push(currentUser.email);
-
-    const members = {};
-    list.forEach(e => members[e] = true);
-
-    const name = prompt("Chat name:");
-
-    db.ref("chats").push({
-        name: name || "Chat",
-        members: members
-    });
+    input.value="";
 }
 
 /* TYPING */
-function enableTyping() {
-    const input = document.getElementById("msg");
+function typingSystem(){
+    const input=document.getElementById("msg");
 
-    input.oninput = () => {
-        db.ref("typing/" + currentChatId + "/" + currentUser.email.replace(/\./g, "_"))
-        .set(true);
+    input.oninput=()=>{
+        db.ref("typing/"+currentChatId+"/"+key()).set(true);
 
-        setTimeout(() => {
-            db.ref("typing/" + currentChatId + "/" + currentUser.email.replace(/\./g, "_"))
-            .remove();
-        }, 1000);
+        setTimeout(()=>{
+            db.ref("typing/"+currentChatId+"/"+key()).remove();
+        },1000);
     };
 
-    db.ref("typing/" + currentChatId).on("value", snap => {
-        const box = document.getElementById("typing");
-        const data = snap.val();
+    db.ref("typing/"+currentChatId).on("value",snap=>{
+        const t=snap.val();
+        document.getElementById("typing").textContent =
+            t? "Someone is typing..." : "";
+    });
+}
 
-        box.textContent = data ? "Someone is typing..." : "";
+/* CREATE */
+function createChat(){
+    const emails=prompt("Emails:");
+    if(!emails) return;
+
+    const list=emails.split(",").map(e=>e.trim());
+    list.push(currentUser.email);
+
+    const members={};
+    list.forEach(e=>members[e.replace(/\./g,"_")]=true);
+
+    const name=prompt("Chat name:");
+
+    db.ref("chats").push({
+        name:name||"Chat",
+        members:members
     });
 }
 </script>
