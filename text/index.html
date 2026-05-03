@@ -1,141 +1,153 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Secret Chat</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secret Text</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <style>
-        body {
-            margin: 0;
-            font-family: "Segoe UI", sans-serif;
-            background: #f3f2f1;
-        }
+<style>
+body {
+    margin: 0;
+    font-family: "Segoe UI", sans-serif;
+    background: #f3f6ff;
+}
 
-        #loading {
-            position: fixed;
-            inset: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 24px;
-            background: white;
-            transition: 0.3s;
-        }
+/* LOADING */
+#loading {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 22px;
+    background: white;
+}
 
-        #app {
-            display: none;
-        }
+/* APP */
+#app {
+    display: none;
+    height: 100vh;
+}
 
-        /* 🧠 TEAMS STYLE LAYOUT */
-        #chatListPanel {
-            width: 280px;
-            background: #ffffff;
-            height: 100vh;
-            float: left;
-            border-right: 1px solid #ddd;
-        }
+/* SIDEBAR */
+#chatListPanel {
+    width: 280px;
+    background: #0d2b66;
+    color: white;
+    height: 100vh;
+    float: left;
+}
 
-        #chatContainer {
-            margin-left: 280px;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            background: #fafafa;
-        }
+#chatListHeader {
+    padding: 15px;
+    font-weight: bold;
+}
 
-        #chatHeader {
-            padding: 12px;
-            font-weight: 600;
-            border-bottom: 1px solid #ddd;
-            background: white;
-        }
+.chatItem {
+    padding: 12px;
+    cursor: pointer;
+}
 
-        #chat {
-            flex: 1;
-            overflow-y: auto;
-            padding: 15px;
-        }
+.chatItem:hover {
+    background: rgba(255,255,255,0.1);
+}
 
-        #inputArea {
-            display: flex;
-            padding: 10px;
-            background: white;
-            border-top: 1px solid #ddd;
-        }
+/* MAIN */
+#chatContainer {
+    margin-left: 280px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
 
-        #inputArea input {
-            flex: 1;
-            padding: 10px;
-        }
+#chatHeader {
+    padding: 12px;
+    background: white;
+    border-bottom: 1px solid #ddd;
+}
 
-        button {
-            margin-left: 10px;
-            padding: 10px;
-        }
+#chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+}
 
-        /* 🧠 TEAMS MESSAGE STYLE */
-        .msgRow {
-            padding: 6px 0;
-            border-bottom: 1px solid #eee;
-        }
+/* MESSAGES */
+.msgRow {
+    max-width: 60%;
+    padding: 10px;
+    margin: 8px 0;
+    background: white;
+    border-radius: 10px;
+}
 
-        .meRow {
-            background: #eef6ff;
-        }
+.meRow {
+    margin-left: auto;
+    background: #d9e8ff;
+}
 
-        .status {
-            font-size: 12px;
-            color: gray;
-        }
+.status {
+    font-size: 11px;
+    color: gray;
+}
 
-        .onlineDot {
-            width: 8px;
-            height: 8px;
-            background: green;
-            border-radius: 50%;
-            display: inline-block;
-            margin-left: 6px;
-        }
-    </style>
+/* INPUT */
+#inputArea {
+    display: flex;
+    padding: 10px;
+    background: white;
+    border-top: 1px solid #ddd;
+}
+
+#inputArea input {
+    flex: 1;
+    padding: 10px;
+}
+
+button {
+    margin-left: 10px;
+    padding: 10px;
+    background: #2563eb;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+</style>
 </head>
 
 <body>
 
-<div id="loading">Authenticating</div>
+<div id="loading">Authenticating...</div>
 
 <div id="app">
 
-    <div id="chatListPanel">
-        <div id="chatListHeader">Chats</div>
-        <div id="chatList"></div>
-        <button onclick="createChat()">+ New Chat</button>
+<div id="chatListPanel">
+    <div id="chatListHeader">Chats</div>
+    <div id="chatList"></div>
+    <button onclick="createChat()">+ New Chat</button>
+</div>
+
+<div id="chatContainer">
+    <div id="chatHeader">Select a chat</div>
+    <div id="chat"></div>
+
+    <div id="typing"></div>
+
+    <div id="inputArea">
+        <input id="msg" placeholder="Type a message...">
+        <button onclick="send()">Send</button>
     </div>
-
-    <div id="chatContainer">
-        <div id="chatHeader">Select a chat</div>
-        <div id="chat"></div>
-
-        <div id="typing"></div>
-
-        <div id="inputArea">
-            <input id="msg" placeholder="Type a message...">
-            <button onclick="send()">Send</button>
-        </div>
-    </div>
+</div>
 
 </div>
 
-<!-- 🔥 FIREBASE -->
+<!-- FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-database-compat.js"></script>
 
 <script>
-/* =========================
-   FIREBASE INIT
-========================= */
 const firebaseConfig = {
-  apiKey: "AIzaSyDp1LSm2HlZ3xBDlwBPnEU62Es_KoyavUw",
+  apiKey: "YOUR_KEY",
   authDomain: "secret-chat-6de59.firebaseapp.com",
   projectId: "secret-chat-6de59",
   storageBucket: "secret-chat-6de59.firebasestorage.app",
@@ -145,22 +157,12 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 
-window.addEventListener("load", () => {
-    auth.signInWithPopup(provider).catch(err => {
-        console.log("Login attempt failed or blocked:", err);
-    });
-});
-
 const auth = firebase.auth();
 const db = firebase.database();
+const provider = new firebase.auth.GoogleAuthProvider();
 
-/* =========================
-   STATE
-========================= */
 let currentUser = null;
 let currentChatId = null;
-
-const provider = new firebase.auth.GoogleAuthProvider();
 
 const allowedEmails = [
     "ishaan.raj111@gmail.com",
@@ -169,45 +171,24 @@ const allowedEmails = [
     "3121@student.goldendoorschool.org"
 ];
 
-/* =========================
-   LOADING
-========================= */
+/* LOADING */
 let dots = 0;
-
 setInterval(() => {
-    const loading = document.getElementById("loading");
-    if (!loading) return;
-
+    const el = document.getElementById("loading");
+    if (!el) return;
     dots = (dots + 1) % 4;
-    loading.textContent = "Authenticating" + ".".repeat(dots);
-}, 200);
+    el.textContent = "Authenticating" + ".".repeat(dots);
+}, 300);
 
-/* =========================
-   LOGIN
-========================= */
-function login() {
-    auth.signInWithPopup(provider)
-        .catch(err => {
-            console.log("Login failed:", err);
-        });
-}
-
-/* =========================
-   AUTO AUTH FLOW
-========================= */
+/* AUTH */
 auth.onAuthStateChanged(user => {
     const loading = document.getElementById("loading");
     const app = document.getElementById("app");
 
-    if (user === undefined) return;
+    if (!user) return;
 
-    if (!user) {
-        loading.textContent = "Authenticating...";
-        return;
-    }
-
-    const email = (user.email || "").trim().toLowerCase();
-    const allowed = allowedEmails.map(e => e.trim().toLowerCase());
+    const email = (user.email || "").toLowerCase();
+    const allowed = allowedEmails.map(e => e.toLowerCase());
 
     if (!allowed.includes(email)) {
         loading.textContent = "Access denied 🚫";
@@ -224,24 +205,23 @@ auth.onAuthStateChanged(user => {
     loadChats();
 });
 
-/* =========================
-   ONLINE STATUS
-========================= */
+/* SAFE AUTO LOGIN */
+window.addEventListener("load", () => {
+    if (!auth.currentUser) {
+        auth.signInWithPopup(provider).catch(() => {});
+    }
+});
+
+/* ONLINE STATUS */
 function setOnline(status) {
     if (!currentUser) return;
 
-    db.ref("status/" + currentUser.email.replace(".", "_")).set({
+    db.ref("status/" + currentUser.email.replace(/\./g, "_")).set({
         online: status
     });
 }
 
-window.addEventListener("beforeunload", () => {
-    setOnline(false);
-});
-
-/* =========================
-   LOAD CHATS
-========================= */
+/* LOAD CHATS */
 function loadChats() {
     const chatList = document.getElementById("chatList");
     chatList.innerHTML = "";
@@ -252,7 +232,8 @@ function loadChats() {
         if (!chat.members || !chat.members[currentUser.email]) return;
 
         const div = document.createElement("div");
-        div.innerHTML = chat.name + `<span class="onlineDot"></span>`;
+        div.className = "chatItem";
+        div.textContent = chat.name;
 
         div.onclick = () => openChat(snap.key);
 
@@ -260,14 +241,14 @@ function loadChats() {
     });
 }
 
-/* =========================
-   OPEN CHAT
-========================= */
+/* OPEN CHAT */
 function openChat(chatId) {
     currentChatId = chatId;
 
     const chatDiv = document.getElementById("chat");
     chatDiv.innerHTML = "";
+
+    db.ref("chats/" + chatId + "/messages").off();
 
     db.ref("chats/" + chatId + "/messages")
     .limitToLast(50)
@@ -277,39 +258,31 @@ function openChat(chatId) {
         const sender = data.sender;
         const text = data.text;
 
-        let status = "Sent";
-        if (data.delivered) status = "Delivered";
-        if (data.seen) status = "Seen";
-
         const msg = document.createElement("div");
         msg.className = "msgRow";
-        if (sender === currentUser.email) msg.classList.add("meRow");
+
+        if (sender === currentUser.email) {
+            msg.classList.add("meRow");
+        }
 
         msg.innerHTML = `
             <div><b>${sender}</b></div>
             <div>${text}</div>
-            <div class="status">${status}</div>
+            <div class="status">${data.seen ? "Seen" : "Sent"}</div>
         `;
 
         chatDiv.appendChild(msg);
         chatDiv.scrollTop = chatDiv.scrollHeight;
 
-        // mark seen
         if (sender !== currentUser.email) {
             snap.ref.update({ seen: true });
-
-            if (document.hidden) {
-                new Notification("New message", { body: text });
-            }
         }
     });
 
     enableTyping();
 }
 
-/* =========================
-   SEND MESSAGE
-========================= */
+/* SEND */
 function send() {
     const input = document.getElementById("msg");
     const text = input.value.trim();
@@ -320,25 +293,20 @@ function send() {
         sender: currentUser.email,
         text: text,
         time: Date.now(),
-        delivered: true,
         seen: false
     });
 
     input.value = "";
 }
 
-/* =========================
-   ENTER KEY
-========================= */
+/* ENTER */
 document.getElementById("msg").addEventListener("keypress", e => {
     if (e.key === "Enter") send();
 });
 
-/* =========================
-   CREATE CHAT
-========================= */
+/* CREATE CHAT */
 function createChat() {
-    const emails = prompt("Enter emails (comma separated):");
+    const emails = prompt("Enter emails:");
     if (!emails) return;
 
     const list = emails.split(",").map(e => e.trim());
@@ -355,38 +323,27 @@ function createChat() {
     });
 }
 
-/* =========================
-   TYPING SYSTEM
-========================= */
+/* TYPING */
 function enableTyping() {
     const input = document.getElementById("msg");
 
-    input.addEventListener("input", () => {
-        db.ref("typing/" + currentChatId + "/" + currentUser.email.replace(".", "_"))
-            .set(true);
+    input.oninput = () => {
+        db.ref("typing/" + currentChatId + "/" + currentUser.email.replace(/\./g, "_"))
+        .set(true);
 
         setTimeout(() => {
-            db.ref("typing/" + currentChatId + "/" + currentUser.email.replace(".", "_"))
-                .remove();
+            db.ref("typing/" + currentChatId + "/" + currentUser.email.replace(/\./g, "_"))
+            .remove();
         }, 1000);
-    });
+    };
 
     db.ref("typing/" + currentChatId).on("value", snap => {
-        const typing = snap.val();
         const box = document.getElementById("typing");
+        const data = snap.val();
 
-        if (typing) {
-            box.innerText = "Someone is typing...";
-        } else {
-            box.innerText = "";
-        }
+        box.textContent = data ? "Someone is typing..." : "";
     });
 }
-
-/* =========================
-   NOTIFICATIONS
-========================= */
-Notification.requestPermission();
 </script>
 
 </body>
