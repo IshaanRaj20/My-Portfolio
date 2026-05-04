@@ -358,6 +358,14 @@ function createChat(){
         members:members
     });
 }
+
+/* ENTER KEY SEND */
+document.getElementById("msg").addEventListener("keydown", function(e) {
+    if (e.key === "Enter") {
+        e.preventDefault();
+        send();
+    }
+});
 </script>
 
 </body>
