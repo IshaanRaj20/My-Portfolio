@@ -184,188 +184,240 @@ const auth = firebase.auth();
 const db = firebase.database();
 const provider = new firebase.auth.GoogleAuthProvider();
 
-let currentUser=null;
-let currentChatId=null;
-let typingRef=null;
+let currentUser = null;
+let currentChatId = null;
+let typingRef = null;
 
-/* KEY */
+/* SAFE KEY */
 function key(){
-    return currentUser.email.replace(/\./g,"_");
+    return currentUser?.email?.replace(/\./g,"_");
 }
 
-/* AUTH (FIXED) */
+/* =========================
+   🟢 PRESENCE SYSTEM
+   ========================= */
+
+function setupPresence(){
+    const userKey = key();
+    if(!userKey) return;
+
+    const statusRef = db.ref("status/" + userKey);
+
+    const offline = {
+        state: "offline",
+        last_changed: firebase.database.ServerValue.TIMESTAMP
+    };
+
+    const online = {
+        state: "online",
+        last_changed: firebase.database.ServerValue.TIMESTAMP
+    };
+
+    db.ref(".info/connected").on("value", snap=>{
+        if(!snap.val()) return;
+
+        statusRef.onDisconnect().set(offline);
+        statusRef.set(online);
+    });
+}
+
+/* manual status (optional extras) */
+window.addEventListener("blur", ()=> {
+    if(currentUser) db.ref("status/"+key()).set({state:"away"});
+});
+
+window.addEventListener("focus", ()=> {
+    if(currentUser) db.ref("status/"+key()).set({state:"online"});
+});
+
+document.addEventListener("keydown", e=>{
+    if(e.key.toLowerCase()==="b"){
+        if(currentUser) db.ref("status/"+key()).set({state:"busy"});
+    }
+});
+
+/* =========================
+   🔐 AUTH (FIXED SAFE)
+   ========================= */
+
 auth.onAuthStateChanged(user=>{
     if(user){
-        currentUser=user;
+        currentUser = user;
 
         document.getElementById("loading").style.display="none";
         document.getElementById("app").style.display="block";
         document.getElementById("userName").textContent=user.email;
 
         loadChats();
+        setupPresence();
+
     } else {
-        // FIX: actually trigger login instead of freezing
-        auth.signInWithPopup(provider)
-        .catch(err=>{
+        auth.signInWithPopup(provider).catch(err=>{
             document.getElementById("loading").innerText =
             "Login failed: " + err.message;
         });
     }
 });
 
-/* LOAD CHATS */
-function loadChats(){
-    const list=document.getElementById("chatList");
-    list.innerHTML="";
+/* =========================
+   💬 LOAD CHATS
+   ========================= */
 
-    db.ref("chats").on("child_added",snap=>{
-        const chat=snap.val();
+function loadChats(){
+    const list = document.getElementById("chatList");
+    list.innerHTML = "";
+
+    db.ref("chats").on("child_added", snap=>{
+        const chat = snap.val();
 
         if(!chat.members[key()]) return;
 
-        const div=document.createElement("div");
-        div.className="chatItem";
+        const div = document.createElement("div");
+        div.className = "chatItem";
 
-        div.innerHTML=`
+        div.innerHTML = `
         <div class="avatar">${chat.name[0]}</div>
         ${chat.name}
         `;
 
-        div.onclick=()=>{
-            document.querySelectorAll(".chatItem")
-            .forEach(e=>e.classList.remove("active"));
-
-            div.classList.add("active");
-            openChat(snap.key);
-        };
+        div.onclick = ()=> openChat(snap.key);
 
         list.appendChild(div);
     });
 }
 
-/* OPEN CHAT */
+/* =========================
+   💬 OPEN CHAT
+   ========================= */
+
 function openChat(id){
-    currentChatId=id;
+    currentChatId = id;
 
-    const chatDiv=document.getElementById("chat");
-    chatDiv.innerHTML="";
+    const chatDiv = document.getElementById("chat");
+    chatDiv.innerHTML = "";
 
-    const header=document.querySelector("#chatHeader span");
-    const delBtn=document.getElementById("deleteBtn");
+    const header = document.querySelector("#chatHeader span");
 
-    db.ref("chats/"+id).once("value",snap=>{
-        const chat=snap.val();
-        header.textContent=chat?.name||"Chat";
+    if(typingRef) typingRef.off();
+    document.getElementById("typing").textContent = "";
 
-        delBtn.style.display="block";
-
-        delBtn.onclick=()=>{
-            if(confirm("Delete this chat for everyone?")){
-                db.ref("chats/"+id).remove();
-                db.ref("typing/"+id).remove();
-                chatDiv.innerHTML="";
-                header.textContent="Select a chat";
-                delBtn.style.display="none";
-            }
-        };
+    db.ref("chats/"+id).once("value", snap=>{
+        header.textContent = snap.val()?.name || "Chat";
     });
 
     db.ref("chats/"+id+"/messages").off();
-    if(typingRef) typingRef.off();
-
-    document.getElementById("typing").textContent="";
 
     db.ref("chats/"+id+"/messages")
     .limitToLast(50)
-    .on("child_added",snap=>{
-        const d=snap.val();
+    .on("child_added", snap=>{
+        const d = snap.val();
 
-        const row=document.createElement("div");
-        row.className="msgRow";
+        const row = document.createElement("div");
+        row.className = "msgRow";
 
-        if(d.sender===currentUser.email)
+        if(d.sender === currentUser.email){
             row.classList.add("meRow");
+        }
 
-        row.innerHTML=`
+        row.innerHTML = `
         <div class="bubble">
             <b>${d.sender}</b><br>
             ${d.text}
+            <div style="font-size:10px;color:gray;margin-top:5px;">
+                ${d.time ? formatTime(d.time) : ""}
+            </div>
         </div>
         `;
 
         chatDiv.appendChild(row);
-        chatDiv.scrollTop=chatDiv.scrollHeight;
+        chatDiv.scrollTop = chatDiv.scrollHeight;
     });
 
     enableTyping();
 }
 
-/* SEND */
-function send(){
-    const input=document.getElementById("msg");
-    const text=input.value.trim();
+/* =========================
+   📩 SEND MESSAGE
+   ========================= */
 
-    if(!text||!currentChatId) return;
+function send(){
+    const input = document.getElementById("msg");
+    const text = input.value.trim();
+
+    if(!text || !currentChatId) return;
 
     db.ref("chats/"+currentChatId+"/messages").push({
-        sender:currentUser.email,
-        text:text,
-        seen:false
+        sender: currentUser.email,
+        text: text,
+        time: Date.now()
     });
 
-    input.value="";
+    input.value = "";
 }
 
-/* TYPING */
+/* =========================
+   ⌨️ TYPING (FIXED)
+   ========================= */
+
 function enableTyping(){
-    const input=document.getElementById("msg");
+    const input = document.getElementById("msg");
+    const myKey = key();
 
-    const myKey=key();
+    typingRef = db.ref("typing/" + currentChatId);
+    typingRef.off();
 
-    typingRef=db.ref("typing/"+currentChatId);
+    input.oninput = ()=>{
 
-    input.oninput=()=>{
-        typingRef.child(myKey).set(currentUser.email);
+        typingRef.child(myKey).set({
+            email: currentUser.email
+        });
 
-        setTimeout(()=>{
+        clearTimeout(window.__t);
+
+        window.__t = setTimeout(()=>{
             typingRef.child(myKey).remove();
-        },1000);
+        }, 1200);
     };
 
-    typingRef.on("value",snap=>{
-        const data=snap.val()||{};
-        const box=document.getElementById("typing");
+    typingRef.on("value", snap=>{
+        const data = snap.val();
+        const box = document.getElementById("typing");
 
-        const users=Object.values(data)
-        .filter(e=>e!==currentUser.email);
+        if(!data){
+            box.textContent = "";
+            return;
+        }
+
+        const users = Object.values(data)
+            .map(u=>u?.email)
+            .filter(Boolean)
+            .filter(e=>e !== currentUser.email);
 
         box.textContent =
-        users.length ? users.join(", ") + " is typing..." : "";
+            users.length ? users.join(", ") + " is typing..." : "";
     });
 }
 
-/* CREATE CHAT */
-function createChat(){
-    const emails=prompt("Emails:");
-    if(!emails) return;
+/* =========================
+   🕒 TIME FORMAT
+   ========================= */
 
-    const list=emails.split(",").map(e=>e.trim());
-    list.push(currentUser.email);
+function formatTime(ms){
+    const d = new Date(ms);
+    let h = d.getHours();
+    let m = d.getMinutes();
 
-    const members={};
-    list.forEach(e=>members[e.replace(/\./g,"_")]=true);
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12;
+    h = h || 12;
+    m = m < 10 ? "0"+m : m;
 
-    const name=prompt("Chat name:");
-
-    db.ref("chats").push({
-        name:name||"Chat",
-        members:members
-    });
+    return `${h}:${m} ${ampm}`;
 }
 
 /* ENTER KEY */
-document.getElementById("msg").addEventListener("keydown", function(e) {
-    if (e.key === "Enter") {
+document.getElementById("msg").addEventListener("keydown", e=>{
+    if(e.key === "Enter"){
         e.preventDefault();
         send();
     }
