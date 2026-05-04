@@ -4,26 +4,32 @@
 <title>Secret Text</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<script type="text/javascript">
-    (function(c,l,a,r,i,t,y){
-        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-    })(window, document, "clarity", "script", "wjgudf9jaf");
-</script>
-
 <style>
-body { margin:0; font-family:"Segoe UI"; background:#eef3ff; }
-
-#loading {
-    position:fixed; inset:0;
-    display:flex; justify-content:center; align-items:center;
-    background:white; font-size:22px;
+body {
+    margin:0;
+    font-family:"Segoe UI";
+    background:#eef3ff;
 }
 
-#app { display:none; height:100vh; }
+/* LOADING */
+#loading{
+    position:fixed;
+    inset:0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:white;
+    font-size:22px;
+}
 
-#topbar {
+/* APP WRAPPER */
+#app{
+    display:none;
+    height:100vh;
+}
+
+/* TOP BAR */
+#topbar{
     height:50px;
     background:#2563eb;
     color:white;
@@ -34,86 +40,85 @@ body { margin:0; font-family:"Segoe UI"; background:#eef3ff; }
     font-weight:600;
 }
 
-#sidebar {
+/* LAYOUT */
+#container{
+    display:flex;
+    height:calc(100vh - 50px);
+}
+
+/* SIDEBAR */
+#sidebar{
     width:260px;
     background:#0d2b66;
     color:white;
-    height:calc(100vh - 50px);
-    float:left;
     overflow-y:auto;
 }
 
-.chatItem {
+/* CHAT LIST */
+.chatItem{
     padding:12px;
     display:flex;
     align-items:center;
     cursor:pointer;
     border-left:3px solid transparent;
-    transition:0.2s;
 }
 
-.chatItem:hover {
+.chatItem:hover{
     background:rgba(255,255,255,0.1);
-    transform:translateX(4px);
 }
 
-.chatItem.active {
-    background:rgba(255,255,255,0.2);
-    border-left:3px solid #60a5fa;
-}
-
-.avatar {
-    width:32px; height:32px;
+.avatar{
+    width:32px;
+    height:32px;
     border-radius:50%;
     background:#3b82f6;
-    display:flex; align-items:center; justify-content:center;
+    display:flex;
+    align-items:center;
+    justify-content:center;
     margin-right:10px;
 }
 
-#main {
-    margin-left:260px;
-    height:calc(100vh - 50px);
+/* MAIN CHAT */
+#main{
+    flex:1;
     display:flex;
     flex-direction:column;
 }
 
-#chatHeader {
-    padding:10px;
-    background:white;
-    border-bottom:1px solid #ddd;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-}
-
-#chat {
+/* CHAT BOX */
+#chat{
     flex:1;
     overflow-y:auto;
     padding:15px;
 }
 
-.msgRow { display:flex; margin:8px 0; }
-.meRow { justify-content:flex-end; }
+/* MESSAGE */
+.msgRow{ display:flex; margin:8px 0; }
+.meRow{ justify-content:flex-end; }
 
-.bubble {
-    max-width:60%;
+.bubble{
+    max-width:70%;
     padding:10px;
     border-radius:10px;
     background:white;
+    word-wrap:break-word;
 }
 
-.meRow .bubble { background:#dbeafe; }
+.meRow .bubble{ background:#dbeafe; }
 
-#inputArea {
+/* INPUT */
+#inputArea{
     display:flex;
     padding:10px;
     background:white;
-    border-top:1px solid #ddd;
 }
 
-#inputArea input { flex:1; padding:10px; }
+#inputArea input{
+    flex:1;
+    padding:10px;
+}
 
-button {
+button{
     margin-left:10px;
     padding:10px;
     background:#2563eb;
@@ -122,12 +127,39 @@ button {
     cursor:pointer;
 }
 
-button:hover { background:#1e4fd6; }
-
-#typing {
+/* TYPING */
+#typing{
     padding:5px 15px;
     font-size:12px;
     color:gray;
+}
+
+/* =========================
+   📱 MOBILE FIX
+   ========================= */
+@media (max-width: 768px){
+    #sidebar{
+        width:90px;
+    }
+
+    .chatItem{
+        flex-direction:column;
+        font-size:10px;
+        text-align:center;
+    }
+
+    .avatar{
+        margin:0;
+        margin-bottom:5px;
+    }
+
+    #inputArea input{
+        font-size:16px;
+    }
+
+    .bubble{
+        max-width:85%;
+    }
 }
 </style>
 </head>
@@ -139,21 +171,18 @@ button:hover { background:#1e4fd6; }
 <div id="app">
 
 <div id="topbar">
-    <div>💬 Ishaan's Secret Chat ✨</div>
+    <div>💬Ishaan's Secret Chat ✨</div>
     <div id="userName"></div>
 </div>
 
+<div id="container">
+
 <div id="sidebar">
     <div id="chatList"></div>
-    <button onclick="createChat()">+ New Chat</button>
+    <button onclick="createChat()">+ New</button>
 </div>
 
 <div id="main">
-
-<div id="chatHeader">
-    <span>Select a chat</span>
-    <button id="deleteBtn" style="display:none;background:red;">Delete</button>
-</div>
 
 <div id="chat"></div>
 <div id="typing"></div>
@@ -163,6 +192,7 @@ button:hover { background:#1e4fd6; }
     <button onclick="send()">Send</button>
 </div>
 
+</div>
 </div>
 </div>
 
@@ -184,142 +214,98 @@ const auth = firebase.auth();
 const db = firebase.database();
 const provider = new firebase.auth.GoogleAuthProvider();
 
-let currentUser = null;
-let currentChatId = null;
-let typingRef = null;
+let currentUser=null;
+let currentChatId=null;
+let typingRef=null;
 
-/* SAFE KEY */
+/* KEY */
 function key(){
-    return currentUser?.email?.replace(/\./g,"_");
+    return currentUser.email.replace(/\./g,"_");
 }
 
-/* =========================
-   🟢 PRESENCE SYSTEM
-   ========================= */
-
-function setupPresence(){
-    const userKey = key();
-    if(!userKey) return;
-
-    const statusRef = db.ref("status/" + userKey);
-
-    const offline = {
-        state: "offline",
-        last_changed: firebase.database.ServerValue.TIMESTAMP
-    };
-
-    const online = {
-        state: "online",
-        last_changed: firebase.database.ServerValue.TIMESTAMP
-    };
-
-    db.ref(".info/connected").on("value", snap=>{
-        if(!snap.val()) return;
-
-        statusRef.onDisconnect().set(offline);
-        statusRef.set(online);
-    });
-}
-
-/* manual status (optional extras) */
-window.addEventListener("blur", ()=> {
-    if(currentUser) db.ref("status/"+key()).set({state:"away"});
-});
-
-window.addEventListener("focus", ()=> {
-    if(currentUser) db.ref("status/"+key()).set({state:"online"});
-});
-
-document.addEventListener("keydown", e=>{
-    if(e.key.toLowerCase()==="b"){
-        if(currentUser) db.ref("status/"+key()).set({state:"busy"});
-    }
-});
-
-/* =========================
-   🔐 AUTH (FIXED SAFE)
-   ========================= */
-
+/* AUTH */
 auth.onAuthStateChanged(user=>{
     if(user){
-        currentUser = user;
+        currentUser=user;
 
         document.getElementById("loading").style.display="none";
         document.getElementById("app").style.display="block";
         document.getElementById("userName").textContent=user.email;
 
-        loadChats();
         setupPresence();
+        loadChats();
 
     } else {
-        auth.signInWithPopup(provider).catch(err=>{
-            document.getElementById("loading").innerText =
-            "Login failed: " + err.message;
-        });
+        auth.signInWithPopup(provider);
     }
 });
 
-/* =========================
-   💬 LOAD CHATS
-   ========================= */
+/* PRESENCE */
+function setupPresence(){
+    const ref = db.ref("status/"+key());
 
+    db.ref(".info/connected").on("value", snap=>{
+        if(!snap.val()) return;
+
+        ref.onDisconnect().set({state:"offline"});
+        ref.set({state:"online"});
+    });
+}
+
+window.addEventListener("blur",()=>setStatus("away"));
+window.addEventListener("focus",()=>setStatus("online"));
+
+function setStatus(s){
+    db.ref("status/"+key()).set({state:s});
+}
+
+/* LOAD CHATS */
 function loadChats(){
-    const list = document.getElementById("chatList");
-    list.innerHTML = "";
+    const list=document.getElementById("chatList");
+    list.innerHTML="";
 
     db.ref("chats").on("child_added", snap=>{
-        const chat = snap.val();
+        const chat=snap.val();
 
         if(!chat.members[key()]) return;
 
-        const div = document.createElement("div");
-        div.className = "chatItem";
+        const div=document.createElement("div");
+        div.className="chatItem";
 
-        div.innerHTML = `
-        <div class="avatar">${chat.name[0]}</div>
-        ${chat.name}
+        div.innerHTML=`
+            <div class="avatar">${chat.name[0]}</div>
+            <div>${chat.name}</div>
         `;
 
-        div.onclick = ()=> openChat(snap.key);
+        div.onclick=()=>openChat(snap.key);
 
         list.appendChild(div);
     });
 }
 
-/* =========================
-   💬 OPEN CHAT
-   ========================= */
-
+/* OPEN CHAT */
 function openChat(id){
-    currentChatId = id;
+    currentChatId=id;
 
-    const chatDiv = document.getElementById("chat");
-    chatDiv.innerHTML = "";
-
-    const header = document.querySelector("#chatHeader span");
+    const chat=document.getElementById("chat");
+    chat.innerHTML="";
 
     if(typingRef) typingRef.off();
-    document.getElementById("typing").textContent = "";
-
-    db.ref("chats/"+id).once("value", snap=>{
-        header.textContent = snap.val()?.name || "Chat";
-    });
-
-    db.ref("chats/"+id+"/messages").off();
+    document.getElementById("typing").textContent="";
 
     db.ref("chats/"+id+"/messages")
     .limitToLast(50)
     .on("child_added", snap=>{
-        const d = snap.val();
+        const d=snap.val();
 
-        const row = document.createElement("div");
-        row.className = "msgRow";
+        const row=document.createElement("div");
+        row.className="msgRow";
 
-        if(d.sender === currentUser.email){
+        if(d.sender===currentUser.email){
             row.classList.add("meRow");
         }
 
-        row.innerHTML = `
+        row.innerHTML=`
         <div class="bubble">
             <b>${d.sender}</b><br>
             ${d.text}
@@ -329,95 +315,101 @@ function openChat(id){
         </div>
         `;
 
-        chatDiv.appendChild(row);
-        chatDiv.scrollTop = chatDiv.scrollHeight;
+        chat.appendChild(row);
+        chat.scrollTop=chat.scrollHeight;
     });
 
     enableTyping();
 }
 
-/* =========================
-   📩 SEND MESSAGE
-   ========================= */
-
+/* SEND */
 function send(){
-    const input = document.getElementById("msg");
-    const text = input.value.trim();
+    const input=document.getElementById("msg");
+    const text=input.value.trim();
 
-    if(!text || !currentChatId) return;
+    if(!text||!currentChatId) return;
 
     db.ref("chats/"+currentChatId+"/messages").push({
-        sender: currentUser.email,
-        text: text,
-        time: Date.now()
+        sender:currentUser.email,
+        text:text,
+        time:Date.now()
     });
 
-    input.value = "";
+    input.value="";
 }
 
-/* =========================
-   ⌨️ TYPING (FIXED)
-   ========================= */
-
+/* TYPING */
 function enableTyping(){
-    const input = document.getElementById("msg");
-    const myKey = key();
+    const input=document.getElementById("msg");
+    const myKey=key();
 
-    typingRef = db.ref("typing/" + currentChatId);
-    typingRef.off();
+    typingRef=db.ref("typing/"+currentChatId);
 
-    input.oninput = ()=>{
+    input.oninput=()=>{
+        typingRef.child(myKey).set({email:currentUser.email});
 
-        typingRef.child(myKey).set({
-            email: currentUser.email
-        });
-
-        clearTimeout(window.__t);
-
-        window.__t = setTimeout(()=>{
+        clearTimeout(window.t);
+        window.t=setTimeout(()=>{
             typingRef.child(myKey).remove();
-        }, 1200);
+        },1200);
     };
 
-    typingRef.on("value", snap=>{
-        const data = snap.val();
-        const box = document.getElementById("typing");
+    typingRef.on("value",snap=>{
+        const data=snap.val();
+        const box=document.getElementById("typing");
 
         if(!data){
-            box.textContent = "";
+            box.textContent="";
             return;
         }
 
-        const users = Object.values(data)
-            .map(u=>u?.email)
-            .filter(Boolean)
-            .filter(e=>e !== currentUser.email);
+        const users=Object.values(data)
+            .map(u=>u.email)
+            .filter(e=>e!==currentUser.email);
 
         box.textContent =
-            users.length ? users.join(", ") + " is typing..." : "";
+        users.length ? users.join(", ")+" is typing..." : "";
     });
 }
 
-/* =========================
-   🕒 TIME FORMAT
-   ========================= */
+/* CHAT CREATE */
+function createChat(){
+    const emails=prompt("Emails:");
+    if(!emails) return;
 
+    const list=emails.split(",").map(e=>e.trim());
+    list.push(currentUser.email);
+
+    const members={};
+    list.forEach(e=>{
+        members[e.replace(/\./g,"_")]=true;
+    });
+
+    const name=prompt("Chat name:");
+
+    db.ref("chats").push({
+        name:name||"Chat",
+        members:members
+    });
+}
+
+/* TIME */
 function formatTime(ms){
-    const d = new Date(ms);
-    let h = d.getHours();
-    let m = d.getMinutes();
+    const d=new Date(ms);
+    let h=d.getHours();
+    let m=d.getMinutes();
 
-    const ampm = h >= 12 ? "PM" : "AM";
-    h = h % 12;
-    h = h || 12;
-    m = m < 10 ? "0"+m : m;
+    const ampm=h>=12?"PM":"AM";
+    h=h%12;
+    h=h||12;
+    m=m<10?"0"+m:m;
 
     return `${h}:${m} ${ampm}`;
 }
 
-/* ENTER KEY */
-document.getElementById("msg").addEventListener("keydown", e=>{
-    if(e.key === "Enter"){
+/* ENTER */
+document.getElementById("msg").addEventListener("keydown",e=>{
+    if(e.key==="Enter"){
         e.preventDefault();
         send();
     }
