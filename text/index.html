@@ -18,7 +18,8 @@ body {
     display:flex;
     justify-content:center;
     align-items:center;
-    background:white;
+    background:#111827;
+    color:white;
     font-size:22px;
 }
 
@@ -134,9 +135,7 @@ button{
     color:gray;
 }
 
-/* =========================
-   📱 MOBILE FIX
-   ========================= */
+/* MOBILE */
 @media (max-width: 768px){
     #sidebar{
         width:90px;
@@ -161,17 +160,40 @@ button{
         max-width:85%;
     }
 }
+
+/* DOT ANIMATION TEXT STYLE */
+.dots {
+    display:inline-block;
+}
 </style>
 </head>
 
 <body>
 
-<div id="loading">Authenticating...</div>
+<!-- LOADING SCREEN (UPDATED) -->
+<div id="loading">
+    <div style="
+        text-align:center;
+        background:rgba(255,255,255,0.05);
+        padding:30px 40px;
+        border-radius:16px;
+        backdrop-filter: blur(10px);
+        box-shadow:0 0 25px rgba(0,0,0,0.5);
+    ">
+        <div style="font-size:60px;">🔐</div>
+        <h2 style="margin-top:10px;">
+            Authenticating<span id="dots">.</span>
+        </h2>
+        <p style="color:gray; font-size:13px; margin-top:8px;">
+            Secure connection in progress
+        </p>
+    </div>
+</div>
 
 <div id="app">
 
 <div id="topbar">
-    <div>💬Ishaan's Secret Chat ✨</div>
+    <div>💬 Ishaan's Secret Chat ✨</div>
     <div id="userName"></div>
 </div>
 
@@ -217,6 +239,15 @@ const provider = new firebase.auth.GoogleAuthProvider();
 let currentUser=null;
 let currentChatId=null;
 let typingRef=null;
+let messagesRef=null;
+
+/* 🔥 ALLOWED EMAILS */
+const allowedEmails = [
+    "ishaan.raj111@gmail.com",
+    "bhagat.prerna@gmail.com",
+    "rakesh.chourasia15@gmail.com",
+    "yashvi.raj111@gmail.com"
+];
 
 /* KEY */
 function key(){
@@ -226,6 +257,29 @@ function key(){
 /* AUTH */
 auth.onAuthStateChanged(user=>{
     if(user){
+
+        if(!allowedEmails.includes(user.email.toLowerCase())){
+            document.body.innerHTML = `
+            <div style="
+                height:100vh;
+                display:flex;
+                justify-content:center;
+                align-items:center;
+                background:#111827;
+                color:white;
+                font-family:Segoe UI;
+                flex-direction:column;
+                text-align:center;
+                padding:20px;
+            ">
+                <div style="font-size:65px;">🚫</div>
+                <h1>Access Denied by the Owner</h1>
+                <p>You are not allowed to use this website.</p>
+            </div>
+            `;
+            return;
+        }
+
         currentUser=user;
 
         document.getElementById("loading").style.display="none";
@@ -250,13 +304,6 @@ function setupPresence(){
         ref.onDisconnect().set({state:"offline"});
         ref.set({state:"online"});
     });
-}
-
-window.addEventListener("blur",()=>setStatus("away"));
-window.addEventListener("focus",()=>setStatus("online"));
-
-function setStatus(s){
-    db.ref("status/"+key()).set({state:s});
 }
 
 /* LOAD CHATS */
@@ -293,9 +340,13 @@ function openChat(id){
     if(typingRef) typingRef.off();
     document.getElementById("typing").textContent="";
 
-    db.ref("chats/"+id+"/messages")
-    .limitToLast(50)
-    .on("child_added", snap=>{
+    if(messagesRef){
+        messagesRef.off();
+    }
+
+    messagesRef = db.ref("chats/"+id+"/messages").limitToLast(50);
+
+    messagesRef.on("child_added", snap=>{
         const d=snap.val();
 
         const row=document.createElement("div");
@@ -414,6 +465,17 @@ document.getElementById("msg").addEventListener("keydown",e=>{
         send();
     }
 });
+
+/* DOT ANIMATION */
+setInterval(()=>{
+    const el = document.getElementById("dots");
+    if(!el) return;
+
+    if(el.textContent === ".") el.textContent = "..";
+    else if(el.textContent === "..") el.textContent = "...";
+    else el.textContent = ".";
+}, 500);
+
 </script>
 
 </body>
