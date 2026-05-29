@@ -5,7 +5,9 @@ This is where I showcase my projects, web apps, and everything I’m building wh
 
 ## 🌐 Live Website
 
-Coming soon / Add your website link here
+Zenithish.com
+
+The Zenith stands for the above, powerful, and successful. ish is the first 3 letters of my name.
 
 ---
 
@@ -88,8 +90,8 @@ Things I want to build next:
 
 # 📬 Contact
 
-GitHub: Add your GitHub link here  
-Website: Add your website link here
+GitHub: https://github.com/IshaanRaj20
+Email: zenithish.raj@gmail.com
 
 ---
 
