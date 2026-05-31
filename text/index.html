@@ -34,7 +34,6 @@ body {
 /* APP */
 #app{ display:none; height:100vh; }
 
-/* TOPBAR (UNCHANGED) */
 #topbar{
     height:50px;
     background:#2563eb;
@@ -46,7 +45,6 @@ body {
     font-weight:600;
 }
 
-/* KEEP ORIGINAL BUTTON STYLE EXACTLY */
 #callBtn{
     display:none;
     margin-left:10px;
@@ -57,13 +55,11 @@ body {
     cursor:pointer;
 }
 
-/* LAYOUT */
 #container{
     display:flex;
     height:calc(100vh - 50px);
 }
 
-/* SIDEBAR (UNCHANGED) */
 #sidebar{
     width:260px;
     background:#0d2b66;
@@ -93,7 +89,6 @@ body {
     margin-right:10px;
 }
 
-/* CHAT AREA (UNCHANGED) */
 #main{
     flex:1;
     display:flex;
@@ -116,7 +111,6 @@ body {
     background:white;
 }
 
-/* INPUT AREA (UNCHANGED — your buttons untouched) */
 #inputArea{
     display:flex;
     padding:10px;
@@ -137,10 +131,7 @@ button{
     cursor:pointer;
 }
 
-/* ======================= */
-/* 🎧 TEAMS CALL OVERLAY */
-/* ======================= */
-
+/* CALL UI */
 #callUI{
     display:none;
     position:fixed;
@@ -151,41 +142,18 @@ button{
     flex-direction:column;
 }
 
-/* top call bar */
 #callHeader{
     padding:15px;
-    font-size:18px;
     border-bottom:1px solid #1f2937;
 }
 
-/* main area */
 #callMain{
     flex:1;
     display:flex;
     justify-content:center;
     align-items:center;
-    flex-direction:column;
 }
 
-/* participants */
-#participants{
-    position:absolute;
-    left:0;
-    top:50px;
-    bottom:80px;
-    width:200px;
-    background:#0f172a;
-    padding:10px;
-}
-
-.part{
-    padding:8px;
-    margin:5px 0;
-    background:#111827;
-    border-radius:8px;
-}
-
-/* bottom controls */
 #controls{
     height:80px;
     display:flex;
@@ -202,10 +170,9 @@ button{
     cursor:pointer;
 }
 
-.end{ background:red; color:white; }
-.mute{ background:#334155; color:white; }
+.end{ background:red; }
+.mute{ background:#334155; }
 
-/* audio */
 audio{ display:none; }
 </style>
 </head>
@@ -217,7 +184,7 @@ audio{ display:none; }
 <div id="app">
 
 <div id="topbar">
-    <div>💬 Ishaan's Secret Chat ✨</div>
+    <div>💬 Secret Chat</div>
     <div>
         <span id="userName"></span>
         <button id="callBtn" onclick="startCall()">📞 Call</button>
@@ -246,21 +213,20 @@ audio{ display:none; }
 
 <!-- CALL UI -->
 <div id="callUI">
-
 <div id="callHeader">Call</div>
-
-<div id="participants"></div>
-
-<div id="callMain">
-    <h2 id="callStatus">Connecting...</h2>
-</div>
+<div id="callMain"><h2 id="status">Connecting...</h2></div>
 
 <div id="controls">
-    <button class="ctrl mute" onclick="toggleMute()">🎤 Mute</button>
-    <button class="ctrl end" onclick="endCall()">📞 End</button>
+    <button class="ctrl mute" onclick="toggleMute()">Mute</button>
+    <button class="ctrl" onclick="toggleScreen()">Screen</button>
+    <button class="ctrl" onclick="toggleRecord()">Record</button>
+    <button class="ctrl end" onclick="endCall()">End</button>
+</div>
 </div>
 
-</div>
+<audio id="ringtone" loop>
+  <source src="https://actions.google.com/sounds/v1/alarms/phone_alerts_and_rings.ogg">
+</audio>
 
 <audio id="remoteAudio" autoplay></audio>
 
@@ -281,223 +247,200 @@ firebase.initializeApp(firebaseConfig);
 
 const auth=firebase.auth();
 const db=firebase.database();
-const provider=new firebase.auth.GoogleAuthProvider();
 
-let currentUser=null;
-let currentChatId=null;
-let currentCallId=null;
-
+let user=null;
+let chatId=null;
+let callId=null;
 let pc=null;
-let localStream=null;
+let stream=null;
+let screenStream=null;
+let recorder=null;
+let chunks=[];
 let muted=false;
 
-const servers={ iceServers:[{urls:"stun:stun.l.google.com:19302"}] };
+const servers={iceServers:[{urls:"stun:stun.l.google.com:19302"}]};
 
 /* AUTH */
-auth.onAuthStateChanged(user=>{
-    if(user){
-        currentUser=user;
-        loading.style.display="none";
-        app.style.display="block";
-        userName.textContent=user.email;
-
-        loadChats();
-        listenCalls();
-    } else {
-        auth.signInWithPopup(provider);
-    }
+auth.onAuthStateChanged(u=>{
+if(u){
+user=u;
+loading.style.display="none";
+app.style.display="block";
+userName.textContent=u.email;
+loadChats();
+listenCalls();
+}else auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
 });
 
-/* CHAT (UNCHANGED LOGIC) */
+/* CHAT */
 function loadChats(){
-    db.ref("chats").on("child_added",snap=>{
-        const c=snap.val();
-        const div=document.createElement("div");
-        div.className="chatItem";
-        div.innerHTML=`<div class="avatar">${c.name[0]}</div><div>${c.name}</div>`;
-        div.onclick=()=>openChat(snap.key);
-        chatList.appendChild(div);
-    });
+db.ref("chats").on("child_added",s=>{
+const c=s.val();
+const d=document.createElement("div");
+d.className="chatItem";
+d.innerHTML=`<div class="avatar">${c.name[0]}</div><div>${c.name}</div>`;
+d.onclick=()=>openChat(s.key);
+chatList.appendChild(d);
+});
 }
 
 function openChat(id){
-    currentChatId=id;
-    callBtn.style.display="inline-block";
-
-    chat.innerHTML="";
-
-    db.ref("chats/"+id+"/messages").on("child_added",snap=>{
-        const m=snap.val();
-        const row=document.createElement("div");
-        row.className="msgRow";
-        if(m.sender===currentUser.email) row.classList.add("meRow");
-
-        row.innerHTML=`
-        <div class="bubble">
-            <b>${m.sender}</b><br>
-            ${m.text}
-            <div style="font-size:10px;color:gray;margin-top:5px;">
-                ${m.time ? formatTime(m.time) : ""}
-            </div>
-        </div>
-`       ;
-        chat.appendChild(row);
-    });
+chatId=id;
+callBtn.style.display="inline-block";
+chat.innerHTML="";
+db.ref("chats/"+id+"/messages").on("child_added",s=>{
+const m=s.val();
+const r=document.createElement("div");
+r.className="msgRow";
+if(m.sender===user.email) r.classList.add("meRow");
+r.innerHTML=`<div class="bubble"><b>${m.sender}</b><br>${m.text}</div>`;
+chat.appendChild(r);
+});
 }
 
 function send(){
-    const text=msg.value;
-    if(!text||!currentChatId) return;
-
-    db.ref("chats/"+currentChatId+"/messages").push({
-        sender:currentUser.email,
-        text,
-        time:Date.now()
-    });
-
-    msg.value="";
-}
-
-function formatTime(ms){
-    const d=new Date(ms);
-    let h=d.getHours();
-    let m=d.getMinutes();
-
-    const ampm=h>=12?"PM":"AM";
-    h=h%12;
-    h=h||12;
-    m=m<10?"0"+m:m;
-
-    return `${h}:${m} ${ampm}`;
-}
-
-function createChat(){
-    const emails=prompt("Emails:");
-    const name=prompt("Name:");
-
-    const list=emails.split(",").map(e=>e.trim());
-    list.push(currentUser.email);
-
-    const members={};
-    list.forEach(e=>members[e.replace(/\./g,"_")]=true);
-
-    db.ref("chats").push({name,members});
+db.ref("chats/"+chatId+"/messages").push({
+sender:user.email,
+text:msg.value
+});
+msg.value="";
 }
 
 /* MIC */
 async function getMic(){
-    localStream=await navigator.mediaDevices.getUserMedia({audio:true});
+stream=await navigator.mediaDevices.getUserMedia({audio:true});
 }
 
 /* CALL */
 async function startCall(){
-    await getMic();
+await getMic();
+const snap=await db.ref("chats/"+chatId).once("value");
+const chat=snap.val();
 
-    const snap=await db.ref("chats/"+currentChatId).once("value");
-    const chat=snap.val();
+const members=Object.keys(chat.members).map(e=>e.replace(/_/g,"."));
+const to=members.find(e=>e!==user.email);
 
-    const members=Object.keys(chat.members).map(e=>e.replace(/_/g,"."));
-    const to=members.find(e=>e!==currentUser.email);
+const c=db.ref("calls").push();
 
-    const call=db.ref("calls").push();
+c.set({from:user.email,to,chatId,status:"ringing"});
 
-    call.set({
-        from:currentUser.email,
-        to,
-        chatId:currentChatId,
-        status:"ringing"
-    });
-
-    setup(call.key,true);
-
-    showUI(currentUser.email,to,"Calling...");
+callId=c.key;
+setup(true);
+showUI("Calling "+to);
 }
 
 /* WEBRTC */
-async function setup(callId,isCaller){
-    pc=new RTCPeerConnection(servers);
+async function setup(isCaller){
+pc=new RTCPeerConnection(servers);
 
-    localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
+stream.getTracks().forEach(t=>pc.addTrack(t,stream));
 
-    pc.ontrack=(e)=>{
-        remoteAudio.srcObject=e.streams[0];
-    };
+pc.ontrack=e=>remoteAudio.srcObject=e.streams[0];
 
-    const ref=db.ref("calls/"+callId);
+const ref=db.ref("calls/"+callId);
 
-    pc.onicecandidate=e=>{
-        if(e.candidate) ref.child("c").push(JSON.stringify(e.candidate));
-    };
+pc.onicecandidate=e=>{
+if(e.candidate) ref.child("c").push(JSON.stringify(e.candidate));
+};
 
-    if(isCaller){
-        const offer=await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        ref.update({offer:JSON.stringify(offer)});
-    }
+if(isCaller){
+const offer=await pc.createOffer();
+await pc.setLocalDescription(offer);
+ref.update({offer:JSON.stringify(offer)});
+}
 
-    ref.on("value",async snap=>{
-        const d=snap.val();
-        if(!d) return;
+ref.on("value",async s=>{
+const d=s.val();
+if(!d) return;
 
-        if(d.offer && !isCaller){
-            await pc.setRemoteDescription(JSON.parse(d.offer));
-            const ans=await pc.createAnswer();
-            await pc.setLocalDescription(ans);
-            ref.update({answer:JSON.stringify(ans),status:"accepted"});
-        }
+if(d.offer && !isCaller){
+await pc.setRemoteDescription(JSON.parse(d.offer));
+const ans=await pc.createAnswer();
+await pc.setLocalDescription(ans);
+ref.update({answer:JSON.stringify(ans),status:"accepted"});
+}
 
-        if(d.answer && isCaller){
-            await pc.setRemoteDescription(JSON.parse(d.answer));
-        }
+if(d.answer && isCaller){
+await pc.setRemoteDescription(JSON.parse(d.answer));
+}
 
-        if(d.status==="ended"){
-            endCall();
-        }
-    });
+if(d.status==="ended") stopCall();
+});
 
-    ref.child("c").on("child_added",snap=>{
-        pc.addIceCandidate(JSON.parse(snap.val()));
-    });
+ref.child("c").on("child_added",s=>{
+pc.addIceCandidate(JSON.parse(s.val()));
+});
 }
 
 /* RECEIVE */
 function listenCalls(){
-    db.ref("calls").on("value",snap=>{
-        const calls=snap.val();
-        if(!calls) return;
+db.ref("calls").on("value",s=>{
+const calls=s.val();
+if(!calls) return;
 
-        Object.entries(calls).forEach(([id,c])=>{
-            if(c.to===currentUser.email && c.status==="ringing"){
-                currentCallId=id;
-                setup(id,false);
-                showUI(c.from,currentUser.email,"Incoming Call");
-            }
-        });
-    });
+Object.entries(calls).forEach(([id,c])=>{
+if(c.to===user.email && c.status==="ringing"){
+callId=id;
+document.getElementById("ringtone").play();
+setup(false);
+showUI("Incoming Call");
+}
+});
+});
 }
 
-/* UI ONLY */
-function showUI(a,b,status){
-    callUI.style.display="flex";
-    callHeader.textContent=`${a} ↔ ${b}`;
-    callStatus.textContent=status;
-
-    participants.innerHTML=`
-        <div class="part">${a}</div>
-        <div class="part">${b}</div>
-    `;
+/* UI */
+function showUI(t){
+callUI.style.display="flex";
+status.textContent=t;
 }
 
+/* END */
 function endCall(){
-    if(currentCallId){
-        db.ref("calls/"+currentCallId).update({status:"ended"});
-    }
-    callUI.style.display="none";
+if(callId) db.ref("calls/"+callId).update({status:"ended"});
+stopCall();
 }
 
+function stopCall(){
+if(pc) pc.close();
+if(stream) stream.getTracks().forEach(t=>t.stop());
+if(screenStream) screenStream.getTracks().forEach(t=>t.stop());
+
+callUI.style.display="none";
+document.getElementById("ringtone").pause();
+}
+
+/* FEATURES */
 function toggleMute(){
-    muted=!muted;
-    localStream.getAudioTracks()[0].enabled=!muted;
+muted=!muted;
+stream.getAudioTracks()[0].enabled=!muted;
+}
+
+async function toggleScreen(){
+screenStream=await navigator.mediaDevices.getDisplayMedia({video:true});
+const track=screenStream.getVideoTracks()[0];
+const sender=pc.getSenders().find(s=>s.track.kind==="video");
+if(sender) sender.replaceTrack(track);
+}
+
+/* RECORD */
+function toggleRecord(){
+if(!recorder){
+chunks=[];
+recorder=new MediaRecorder(stream);
+recorder.ondataavailable=e=>chunks.push(e.data);
+recorder.onstop=()=>{
+const blob=new Blob(chunks);
+const a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="call.webm";
+a.click();
+};
+recorder.start();
+}else{
+recorder.stop();
+recorder=null;
+}
 }
 
 </script>
