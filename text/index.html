@@ -1,16 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Secret Text</title>
+<title>Secret Chat</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<script type="text/javascript">
-    (function(c,l,a,r,i,t,y){
-        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-    })(window, document, "clarity", "script", "wjgudf9jaf");
-</script>
 
 <style>
 body {
@@ -31,13 +23,13 @@ body {
     font-size:22px;
 }
 
-/* APP WRAPPER */
+/* APP */
 #app{
     display:none;
     height:100vh;
 }
 
-/* TOP BAR */
+/* TOPBAR */
 #topbar{
     height:50px;
     background:#2563eb;
@@ -47,6 +39,18 @@ body {
     justify-content:space-between;
     padding:0 15px;
     font-weight:600;
+}
+
+/* CALL BUTTON (hidden by default) */
+#callBtn{
+    display:none;
+    margin-left:auto;
+    padding:8px 12px;
+    background:#1d4ed8;
+    border:none;
+    color:white;
+    border-radius:6px;
+    cursor:pointer;
 }
 
 /* LAYOUT */
@@ -63,13 +67,12 @@ body {
     overflow-y:auto;
 }
 
-/* CHAT LIST */
+/* CHAT ITEM */
 .chatItem{
     padding:12px;
     display:flex;
     align-items:center;
     cursor:pointer;
-    border-left:3px solid transparent;
 }
 
 .chatItem:hover{
@@ -87,7 +90,7 @@ body {
     margin-right:10px;
 }
 
-/* MAIN CHAT */
+/* MAIN */
 #main{
     flex:1;
     display:flex;
@@ -95,14 +98,13 @@ body {
     position:relative;
 }
 
-/* CHAT BOX */
+/* CHAT */
 #chat{
     flex:1;
     overflow-y:auto;
     padding:15px;
 }
 
-/* MESSAGE */
 .msgRow{ display:flex; margin:8px 0; }
 .meRow{ justify-content:flex-end; }
 
@@ -113,8 +115,6 @@ body {
     background:white;
     word-wrap:break-word;
 }
-
-.meRow .bubble{ background:#dbeafe; }
 
 /* INPUT */
 #inputArea{
@@ -137,53 +137,30 @@ button{
     cursor:pointer;
 }
 
-/* DELETE BUTTON */
-#deleteChatBtn{
+/* CALL POPUP */
+#callPopup{
     display:none;
-    position:absolute;
-    top:10px;
-    right:10px;
-    background:red;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.65);
     color:white;
-    border:none;
-    padding:6px 10px;
-    border-radius:8px;
-    cursor:pointer;
-    font-size:12px;
-    z-index:10;
+    justify-content:center;
+    align-items:center;
+    flex-direction:column;
+    z-index:999;
+    text-align:center;
 }
 
-/* TYPING */
-#typing{
-    padding:5px 15px;
-    font-size:12px;
-    color:gray;
+/* Hide scrollbar but keep scrolling working */
+#chat,
+#sidebar {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge old */
 }
 
-/* MOBILE */
-@media (max-width: 768px){
-    #sidebar{
-        width:90px;
-    }
-
-    .chatItem{
-        flex-direction:column;
-        font-size:10px;
-        text-align:center;
-    }
-
-    .avatar{
-        margin:0;
-        margin-bottom:5px;
-    }
-
-    #inputArea input{
-        font-size:16px;
-    }
-
-    .bubble{
-        max-width:85%;
-    }
+#chat::-webkit-scrollbar,
+#sidebar::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
 }
 </style>
 </head>
@@ -191,17 +168,20 @@ button{
 <body>
 
 <div id="loading">
-    <div style="text-align:center;">
-        <div style="font-size:50px;">🔐</div>
-        <h2>Authenticating<span id="dots">.</span></h2>
-    </div>
+    <div>🔐 Authenticating...</div>
 </div>
 
 <div id="app">
 
 <div id="topbar">
-    <div>💬Ishaan's Secret Chat ✨</div>
-    <div id="userName"></div>
+    <div>💬 Ishaan's Secret Chat ✨</div>
+
+    <div style="display:flex; align-items:center;">
+        <div id="userName"></div>
+
+        <!-- CALL BUTTON (ONLY WHEN CHAT OPEN) -->
+        <button id="callBtn" onclick="startCall()">📞 Call</button>
+    </div>
 </div>
 
 <div id="container">
@@ -213,10 +193,7 @@ button{
 
 <div id="main">
 
-<button id="deleteChatBtn">Delete Chat</button>
-
 <div id="chat"></div>
-<div id="typing"></div>
 
 <div id="inputArea">
     <input id="msg">
@@ -227,6 +204,15 @@ button{
 </div>
 </div>
 
+<!-- CALL UI -->
+<div id="callPopup">
+    <h2 id="callText">Incoming Call</h2>
+    <div style="margin-top:20px;">
+        <button onclick="acceptCall()">Accept</button>
+        <button onclick="declineCall()" style="background:red;">Decline</button>
+    </div>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-database-compat.js"></script>
@@ -235,8 +221,8 @@ button{
 const firebaseConfig = {
   apiKey:"AIzaSyDp1LSm2HlZ3xBDlwBPnEU62Es_KoyavUw",
   authDomain:"secret-chat-6de59.firebaseapp.com",
-  projectId:"secret-chat-6de59",
-  databaseURL:"https://secret-chat-6de59-default-rtdb.firebaseio.com"
+  databaseURL:"https://secret-chat-6de59-default-rtdb.firebaseio.com",
+  projectId:"secret-chat-6de59"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -247,73 +233,24 @@ const provider = new firebase.auth.GoogleAuthProvider();
 
 let currentUser=null;
 let currentChatId=null;
-let typingRef=null;
-let messagesRef=null;
-
-/* ALLOWED EMAILS */
-const allowedEmails = [
-    "ishaan.raj111@gmail.com",
-    "bhagat.prerna@gmail.com",
-    "rakesh.chourasia@gmail.com",
-    "yashvi.raj111@gmail.com"
-];
-
-/* KEY */
-function key(){
-    return currentUser.email.replace(/\./g,"_");
-}
+let currentCallId=null;
 
 /* AUTH */
 auth.onAuthStateChanged(user=>{
     if(user){
-
-        if(!allowedEmails.includes(user.email.toLowerCase())){
-            document.body.innerHTML = `
-            <div style="
-                height:100vh;
-                display:flex;
-                justify-content:center;
-                align-items:center;
-                background:#111827;
-                color:white;
-                font-family:Segoe UI;
-                flex-direction:column;
-                text-align:center;
-                padding:20px;
-            ">
-                <div style="font-size:65px;">🚫</div>
-                <h1>Access Denied by the Owner🚫</h1>
-                <p>You are not allowed to use this website.</p>
-            </div>
-            `;
-            return;
-        }
-
         currentUser=user;
 
         document.getElementById("loading").style.display="none";
         document.getElementById("app").style.display="block";
         document.getElementById("userName").textContent=user.email;
 
-        setupPresence();
         loadChats();
+        listenForCalls();
 
     } else {
         auth.signInWithPopup(provider);
     }
 });
-
-/* PRESENCE */
-function setupPresence(){
-    const ref = db.ref("status/"+key());
-
-    db.ref(".info/connected").on("value", snap=>{
-        if(!snap.val()) return;
-
-        ref.onDisconnect().set({state:"offline"});
-        ref.set({state:"online"});
-    });
-}
 
 /* LOAD CHATS */
 function loadChats(){
@@ -322,8 +259,6 @@ function loadChats(){
 
     db.ref("chats").on("child_added", snap=>{
         const chat=snap.val();
-
-        if(!chat.members[key()]) return;
 
         const div=document.createElement("div");
         div.className="chatItem";
@@ -334,7 +269,6 @@ function loadChats(){
         `;
 
         div.onclick=()=>openChat(snap.key);
-
         list.appendChild(div);
     });
 }
@@ -343,21 +277,16 @@ function loadChats(){
 function openChat(id){
     currentChatId=id;
 
-    document.getElementById("deleteChatBtn").style.display="block";
+    // SHOW CALL BUTTON ONLY WHEN CHAT OPEN
+    document.getElementById("callBtn").style.display="inline-block";
 
     const chat=document.getElementById("chat");
     chat.innerHTML="";
 
-    if(typingRef) typingRef.off();
-    document.getElementById("typing").textContent="";
+    db.ref("chats/"+id+"/messages")
+    .limitToLast(50)
+    .on("child_added", snap=>{
 
-    if(messagesRef){
-        messagesRef.off();
-    }
-
-    messagesRef = db.ref("chats/"+id+"/messages").limitToLast(50);
-
-    messagesRef.on("child_added", snap=>{
         const d=snap.val();
 
         const row=document.createElement("div");
@@ -380,8 +309,6 @@ function openChat(id){
         chat.appendChild(row);
         chat.scrollTop=chat.scrollHeight;
     });
-
-    enableTyping();
 }
 
 /* SEND */
@@ -400,57 +327,10 @@ function send(){
     input.value="";
 }
 
-/* DELETE CHAT */
-document.getElementById("deleteChatBtn").onclick = function(){
-    if(!currentChatId) return;
-
-    if(!confirm("Delete this chat for everyone?")) return;
-
-    db.ref("chats/"+currentChatId).remove();
-
-    document.getElementById("chat").innerHTML="";
-    document.getElementById("deleteChatBtn").style.display="none";
-    currentChatId=null;
-};
-
-/* TYPING */
-function enableTyping(){
-    const input=document.getElementById("msg");
-    const myKey=key();
-
-    typingRef=db.ref("typing/"+currentChatId);
-
-    input.oninput=()=>{
-        typingRef.child(myKey).set({email:currentUser.email});
-
-        clearTimeout(window.t);
-        window.t=setTimeout(()=>{
-            typingRef.child(myKey).remove();
-        },1200);
-    };
-
-    typingRef.on("value",snap=>{
-        const data=snap.val();
-        const box=document.getElementById("typing");
-
-        if(!data){
-            box.textContent="";
-            return;
-        }
-
-        const users=Object.values(data)
-            .map(u=>u.email)
-            .filter(e=>e!==currentUser.email);
-
-        box.textContent =
-        users.length ? users.join(", ")+" is typing..." : "";
-    });
-}
-
-/* CHAT CREATE */
+/* CREATE CHAT */
 function createChat(){
     const emails=prompt("Emails:");
-    if(!emails) return;
+    const name=prompt("Chat name:");
 
     const list=emails.split(",").map(e=>e.trim());
     list.push(currentUser.email);
@@ -460,12 +340,70 @@ function createChat(){
         members[e.replace(/\./g,"_")]=true;
     });
 
-    const name=prompt("Chat name:");
-
     db.ref("chats").push({
         name:name||"Chat",
         members:members
     });
+}
+
+/* CALL */
+function startCall(){
+    if(!currentChatId) return;
+
+    db.ref("chats/"+currentChatId).once("value", snap=>{
+        const chat=snap.val();
+
+        const members = Object.keys(chat.members)
+            .map(e=>e.replace("_","."));
+
+        const to = members.find(e=>e!==currentUser.email);
+
+        const callRef = db.ref("calls").push();
+
+        callRef.set({
+            from: currentUser.email,
+            to: to,
+            chatId: currentChatId,
+            status: "ringing"
+        });
+
+        currentCallId = callRef.key;
+    });
+}
+
+/* LISTEN CALLS */
+function listenForCalls(){
+
+    db.ref("calls").on("value", snap=>{
+        const calls = snap.val();
+        if(!calls) return;
+
+        Object.entries(calls).forEach(([id, call])=>{
+
+            if(call.to === currentUser.email && call.status === "ringing"){
+
+                currentCallId = id;
+
+                document.getElementById("callText").innerText =
+                    call.from + " is calling you";
+
+                document.getElementById("callPopup").style.display="flex";
+            }
+        });
+    });
+}
+
+/* ACCEPT */
+function acceptCall(){
+    db.ref("calls/"+currentCallId).update({status:"accepted"});
+    document.getElementById("callPopup").style.display="none";
+    alert("Call started");
+}
+
+/* DECLINE */
+function declineCall(){
+    db.ref("calls/"+currentCallId).update({status:"declined"});
+    document.getElementById("callPopup").style.display="none";
 }
 
 /* TIME */
@@ -481,25 +419,6 @@ function formatTime(ms){
 
     return `${h}:${m} ${ampm}`;
 }
-
-/* ENTER */
-document.getElementById("msg").addEventListener("keydown",e=>{
-    if(e.key==="Enter"){
-        e.preventDefault();
-        send();
-    }
-});
-
-/* DOT ANIMATION */
-setInterval(()=>{
-    const el = document.getElementById("dots");
-    if(!el) return;
-
-    if(el.textContent === ".") el.textContent = "..";
-    else if(el.textContent === "..") el.textContent = "...";
-    else el.textContent = ".";
-}, 500);
-
 </script>
 
 </body>
