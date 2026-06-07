@@ -59,29 +59,6 @@ The Sandbox mode provides a dedicated play-chamber designed for tuning aircraft 
 
 ---
 
-## 🚀 Quick Start & Development
-
-To spin up the application in a local development context:
-
-1.  **Install project dependencies**:
-    ```bash
-    npm install
-    ```
-2.  **Boot the development server**:
-    ```bash
-    npm run dev
-    ```
-3.  **Produce a production-grade bundle**:
-    ```bash
-    npm run build
-    ```
-4.  **Launch static preview production build**:
-    ```bash
-    npm run start
-    ```
-
----
-
 ## 🌌 Aesthetics & Inspiration
 
 This application visualizes standard physical mechanics through the glowing grids of neon vectors. Styled with generous negative space, sleek translucent panels, high-contrast dashboard telemetries, and dark cosmic backdrops. Perfect for benchmarking arcade responses and customized physics simulators!
