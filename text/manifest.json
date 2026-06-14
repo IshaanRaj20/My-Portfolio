@@ -1,6 +1,6 @@
 {
-  "name": "Secret Chat",
-  "short_name": "Secret Chat",
+  "name": "TeamChat",
+  "short_name": "TeamChat",
   "start_url": "/text/",
   "display": "standalone",
   "background_color": "#0f172a",
