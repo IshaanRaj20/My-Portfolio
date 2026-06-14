@@ -857,8 +857,8 @@ body {
 
 <!-- LOADING -->
 <div id="loading">
-  <div class="loading-logo">🔐</div>
-  <div class="loading-text">Authenticating</div>
+  <div class="loading-logo">💬</div>
+  <div class="loading-text">TeamChat</div>
   <div class="loading-sub">Signing you in securely…</div>
   <div class="loading-bar"><div class="loading-bar-fill"></div></div>
 </div>
@@ -1341,6 +1341,8 @@ let user, chatId, callId;
 let pc, stream;
 let muted = false;
 let screenStream = null;
+let messagesRef = null;
+let messageListener = null;
 
 document.addEventListener('click', ()=>{
   const r = document.getElementById('ringtone');
@@ -1394,14 +1396,23 @@ function loadChats(){
 /* OPEN CHAT */
 function openChat(id, name){
   chatId = id;
+
   document.getElementById('emptyState').style.display = 'none';
   document.getElementById('chat').style.display = 'flex';
   document.getElementById('inputArea').style.display = 'block';
   document.getElementById('chatHeader').style.display = 'flex';
   document.getElementById('callBtn').style.display = 'flex';
+
   document.getElementById('chat').innerHTML = '';
 
-  db.ref('chats/'+id).once('value').then(snap => {
+  // 🧠 FIX: remove old listener before switching chats
+  if (messagesRef && messageListener) {
+    messagesRef.off('child_added', messageListener);
+  }
+
+  messagesRef = db.ref('chats/' + id + '/messages');
+
+  db.ref('chats/' + id).once('value').then(snap => {
     const c = snap.val();
     if(c){
       document.getElementById('chatHeaderName').textContent = c.name || 'Chat';
@@ -1411,22 +1422,26 @@ function openChat(id, name){
     }
   });
 
-  let lastSender = null, lastDate = null;
+  let lastDate = null;
 
-  db.ref('chats/'+id+'/messages').on('child_added', s => {
+  // ⚡ ONE stable listener (no duplicates ever)
+  messageListener = function(s) {
     const m = s.val();
     const chatEl = document.getElementById('chat');
 
+    if (!chatEl) return;
+
+    // SYSTEM MESSAGE
     if(m.sender === 'system'){
       const row = document.createElement('div');
       row.className = 'sys-msg';
-      row.innerHTML = `<div class="sys-msg-line"></div><span>${m.text||''}</span><div class="sys-msg-line"></div>`;
+      row.innerHTML = `<div class="sys-msg-line"></div><span>${m.text || ''}</span><div class="sys-msg-line"></div>`;
       chatEl.appendChild(row);
       chatEl.scrollTop = chatEl.scrollHeight;
       return;
     }
 
-    // date divider
+    // DATE DIVIDER
     const msgDate = m.time ? new Date(m.time).toDateString() : null;
     if(msgDate && msgDate !== lastDate){
       lastDate = msgDate;
@@ -1443,6 +1458,7 @@ function openChat(id, name){
 
     const row = document.createElement('div');
     row.className = 'msgGroup' + (isMe ? ' me' : '');
+
     row.innerHTML = `
       <div class="mg-avatar" style="${avatarColor}">${initials}</div>
       <div class="mg-body">
@@ -1450,13 +1466,16 @@ function openChat(id, name){
           <span class="mg-sender">${isMe ? 'You' : m.sender}</span>
           <span class="mg-time">${m.time ? formatTime(m.time) : ''}</span>
         </div>
-        <div class="bubble${isMe?' me':''}">${m.text||''}</div>
+        <div class="bubble${isMe?' me':''}">${m.text || ''}</div>
       </div>
     `;
+
     chatEl.appendChild(row);
-    lastSender = m.sender;
     chatEl.scrollTop = chatEl.scrollHeight;
-  });
+  };
+
+  // 🚀 attach ONCE only
+  messagesRef.on('child_added', messageListener);
 }
 
 function formatTime(ms){
@@ -1942,7 +1961,7 @@ function handleFileAttach(e){
 }
 
 /* Composer toolbar: emoji */
-const EMOJI_LIST = ['😀','😂','😍','👍','🙏','🎉','🔥','❤️','😢','😮','👏','🚀','✅','❓','💡','🤔','😎','🥳','👀','💯'];
+const EMOJI_LIST = ['😀','😂','😍','👍','🙏','🎉','🔥','❤️','😢','😮','👏','🚀','✅','❓','💡','🤔','😎','🥳','👀','💯','🗑️','🙄,'😡','🚀','🤯'];
 function toggleEmojiPicker(){
   const picker = document.getElementById('emojiPicker');
   if(picker.classList.contains('open')){
