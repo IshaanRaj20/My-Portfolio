@@ -245,7 +245,7 @@ body {
 }
 
 /* ── MAIN AREA ── */
-#main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: white; }
+#main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: white; position: relative; }
 
 /* channel header */
 #chatHeader {
@@ -846,8 +846,11 @@ body {
 .emoji-opt:hover { background: var(--border-light); }
 
 /* ── PIN BADGE ── */
-.ci-pin-badge { display: none; font-size: 11px; color: var(--text-muted); }
-.chatItem.pinned .ci-pin-badge { display: block; }
+.ci-pin-badge { display: none; font-size: 11px; color: var(--text-muted); margin-right: 4px; }
+.chatItem.pinned .ci-pin-badge { display: inline; }
+
+/* ── PIN BUTTON ACTIVE STATE ── */
+.ch-btn.active-pin { background: var(--blue-xlight); border-color: var(--blue-light); color: var(--blue-dark); }
 </style>
 </head>
 <body>
@@ -855,7 +858,7 @@ body {
 <!-- LOADING -->
 <div id="loading">
   <div class="loading-logo">🔐</div>
-  <div class="loading-text">Secret Chat</div>
+  <div class="loading-text">Authenticating</div>
   <div class="loading-sub">Signing you in securely…</div>
   <div class="loading-bar"><div class="loading-bar-fill"></div></div>
 </div>
@@ -867,35 +870,37 @@ body {
   <div id="navRail">
     <div class="nav-logo">💬</div>
     <div class="nav-items">
-      <div class="nav-item active" title="Chat">
+      <div class="nav-item active" data-view="chat" onclick="switchView('chat')" title="Chat">
         <div class="nav-icon">💬</div>
         <div class="nav-label">Chat</div>
       </div>
-      <div class="nav-item" title="Teams">
+      <div class="nav-item" data-view="teams" onclick="switchView('teams')" title="Teams">
         <div class="nav-icon">👥</div>
         <div class="nav-label">Teams</div>
       </div>
-      <div class="nav-item" title="Calendar">
+      <div class="nav-item" data-view="calendar" onclick="switchView('calendar')" title="Calendar">
         <div class="nav-icon">📅</div>
         <div class="nav-label">Calendar</div>
       </div>
-      <div class="nav-item" title="Files">
+      <div class="nav-item" data-view="files" onclick="switchView('files')" title="Files">
         <div class="nav-icon">📁</div>
         <div class="nav-label">Files</div>
       </div>
-      <div class="nav-item" title="Apps">
+      <div class="nav-item" data-view="apps" onclick="switchView('apps')" title="Apps">
         <div class="nav-icon">⚡</div>
         <div class="nav-label">Apps</div>
       </div>
     </div>
     <div class="nav-bottom">
-      <div class="nav-settings" title="Settings">⚙️</div>
-      <div class="nav-avatar-wrap">
+      <div class="nav-settings" onclick="openSettings()" title="Settings">⚙️</div>
+      <div class="nav-avatar-wrap" onclick="toggleProfilePopup()">
         <div class="nav-avatar" id="navAvatar">?</div>
         <div class="nav-presence"></div>
       </div>
     </div>
   </div>
+
+
 
   <!-- SIDEBAR -->
   <div id="sidebar">
@@ -906,7 +911,7 @@ body {
       </div>
       <div class="sidebar-search">
         <span>🔍</span>
-        <input placeholder="Search chats…">
+        <input placeholder="Search chats…" id="chatSearch" oninput="filterChats()">
       </div>
     </div>
     <div class="sidebar-section-label">Recent</div>
@@ -927,8 +932,8 @@ body {
         <button class="ch-btn" onclick="startCall()" id="callBtn" style="display:none">
           📞 Call
         </button>
-        <button class="ch-btn">📌 Pin</button>
-        <button class="ch-btn">👤 Members</button>
+        <button class="ch-btn" onclick="togglePin()" id="pinBtn">📌 Pin</button>
+        <button class="ch-btn" onclick="toggleMembersPanel()">👤 Members</button>
       </div>
     </div>
 
@@ -946,17 +951,159 @@ body {
     <div id="inputArea" style="display:none">
       <div class="composer">
         <div class="composer-toolbar">
-          <button class="toolbar-btn" title="Format">𝐁</button>
-          <button class="toolbar-btn" title="Italic">𝐼</button>
-          <button class="toolbar-btn" title="Attach">📎</button>
-          <button class="toolbar-btn" title="Emoji">😊</button>
-          <button class="toolbar-btn" title="GIF">GIF</button>
+          <button class="toolbar-btn" title="Format" onclick="wrapSelection('**')">𝐁</button>
+          <button class="toolbar-btn" title="Italic" onclick="wrapSelection('*')">𝐼</button>
+          <button class="toolbar-btn" title="Attach" onclick="document.getElementById('fileInput').click()">📎</button>
+          <button class="toolbar-btn" title="Emoji" onclick="toggleEmojiPicker()">😊</button>
+          <button class="toolbar-btn" title="GIF" onclick="showToast('GIF picker is coming soon')">GIF</button>
+          <input type="file" id="fileInput" style="display:none" onchange="handleFileAttach(event)">
         </div>
         <div class="composer-input-row">
           <textarea id="msg" rows="1" placeholder="Type a message…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}" oninput="autoResize(this)"></textarea>
           <button class="send-btn" onclick="send()">➤</button>
         </div>
       </div>
+    </div>
+
+    <!-- Members side panel -->
+    <div id="membersPanel">
+      <div class="mp-header">
+        <div class="mp-title">Members</div>
+        <button class="mp-close" onclick="toggleMembersPanel()">✕</button>
+      </div>
+      <div id="membersList"></div>
+      <button class="mp-add-btn" onclick="addMember()">➕ Add member</button>
+    </div>
+
+    <!-- Emoji picker -->
+    <div id="emojiPicker"></div>
+  </div>
+
+  <!-- TEAMS VIEW -->
+  <div class="nav-view" id="view-teams">
+    <div class="nav-view-header">
+      <div class="nav-view-title">Teams</div>
+      <div class="nav-view-sub">Teams and channels you're part of</div>
+    </div>
+    <div class="nav-view-body">
+      <div class="placeholder-section">
+        <div class="ps-icon">👥</div>
+        <div class="ps-title">No teams yet</div>
+        <div class="ps-sub">Teams and their channels will show up here once you create or join one.</div>
+        <button class="ps-action-btn" onclick="showToast('Team creation is coming soon')">Create a team</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CALENDAR VIEW -->
+  <div class="nav-view" id="view-calendar">
+    <div class="nav-view-header">
+      <div class="nav-view-title">Calendar</div>
+      <div class="nav-view-sub">Upcoming meetings and events</div>
+    </div>
+    <div class="nav-view-body">
+      <div class="placeholder-section">
+        <div class="ps-icon">📅</div>
+        <div class="ps-title">No events scheduled</div>
+        <div class="ps-sub">Your meetings and calls will appear here once scheduling is connected.</div>
+        <button class="ps-action-btn" onclick="showToast('Scheduling is coming soon')">New event</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FILES VIEW -->
+  <div class="nav-view" id="view-files">
+    <div class="nav-view-header">
+      <div class="nav-view-title">Files</div>
+      <div class="nav-view-sub">Shared files across your chats</div>
+    </div>
+    <div class="nav-view-body">
+      <div class="placeholder-section">
+        <div class="ps-icon">📁</div>
+        <div class="ps-title">No files yet</div>
+        <div class="ps-sub">Files shared in your chats will be collected here for quick access.</div>
+        <button class="ps-action-btn" onclick="showToast('The file library is coming soon')">Upload a file</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPS VIEW -->
+  <div class="nav-view" id="view-apps">
+    <div class="nav-view-header">
+      <div class="nav-view-title">Apps</div>
+      <div class="nav-view-sub">Extend TeamChat with integrations</div>
+    </div>
+    <div class="nav-view-body">
+      <div class="placeholder-section">
+        <div class="ps-icon">⚡</div>
+        <div class="ps-title">No apps installed</div>
+        <div class="ps-sub">Connect tools like task boards, polls, and bots to bring them into your chats.</div>
+        <button class="ps-action-btn" onclick="showToast('The app directory is coming soon')">Browse apps</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Profile popup -->
+<div id="profilePopup">
+  <div class="pp-header">
+    <div class="pp-avatar" id="ppAvatar">?</div>
+    <div>
+      <div class="pp-name" id="ppName">User</div>
+      <div class="pp-email" id="ppEmail">user@example.com</div>
+    </div>
+  </div>
+  <div class="pp-status-row">
+    <div class="pp-dot" id="ppStatusDot"></div>
+    <div class="pp-status-text" id="ppStatusText">Available</div>
+    <div class="pp-status-change" onclick="cycleStatus()">Change</div>
+  </div>
+  <div class="pp-menu-item" onclick="showToast('Notification settings are coming soon')">🔔 Notifications</div>
+  <div class="pp-menu-item" onclick="openSettings()">⚙️ Settings</div>
+  <div class="pp-menu-item danger" onclick="signOut()">🚪 Sign out</div>
+</div>
+
+<!-- New chat modal -->
+<div class="modal-overlay" id="newChatOverlay" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">New chat</div>
+      <button class="modal-close" onclick="closeNewChat()">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="form-label">Chat name</label>
+      <input class="form-input" id="newChatName" placeholder="e.g. Project Falcon">
+      <label class="form-label">Add member by email</label>
+      <input class="form-input" id="newChatMember" placeholder="teammate@company.com">
+      <div class="form-hint">They'll see this chat appear in their list automatically.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-secondary" onclick="closeNewChat()">Cancel</button>
+      <button class="modal-btn modal-btn-primary" onclick="submitNewChat()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal-overlay" id="settingsOverlay" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Settings</div>
+      <button class="modal-close" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="form-label">Signed in as</label>
+      <input class="form-input" id="settingsEmail" disabled>
+      <label class="form-label">Status</label>
+      <input class="form-input" id="settingsStatus" readonly onclick="cycleStatus()" style="cursor:pointer">
+      <div class="form-hint">Click the status field to cycle: Available → Away → Busy → Offline</div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-secondary" onclick="signOut()">Sign out</button>
+      <button class="modal-btn modal-btn-primary" onclick="closeSettings()">Done</button>
     </div>
   </div>
 </div>
@@ -1524,6 +1671,310 @@ function toggleRecord(){
     btn.classList.remove('off');
   }
 }
+</script>
+
+<script>
+/* ── ADDITIONAL UI WIRING ── */
+
+/* Toast */
+function showToast(msg, duration = 2500){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(t._hideTimer);
+  t._hideTimer = setTimeout(()=>{ t.style.display = 'none'; }, duration);
+}
+
+/* Nav view switching (Chat / Teams / Calendar / Files / Apps) */
+function switchView(view){
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  const activeNav = document.querySelector('.nav-item[data-view="'+view+'"]');
+  if(activeNav) activeNav.classList.add('active');
+
+  const isChat = view === 'chat';
+  document.getElementById('sidebar').style.display = isChat ? 'flex' : 'none';
+  document.getElementById('main').style.display = isChat ? 'flex' : 'none';
+
+  document.querySelectorAll('.nav-view').forEach(el => el.classList.remove('active'));
+  if(!isChat){
+    const panel = document.getElementById('view-'+view);
+    if(panel) panel.classList.add('active');
+  }
+}
+
+/* Profile popup */
+function toggleProfilePopup(){
+  const popup = document.getElementById('profilePopup');
+  const open = popup.classList.toggle('open');
+  if(open && typeof user !== 'undefined' && user){
+    document.getElementById('ppAvatar').textContent = user.email[0].toUpperCase();
+    document.getElementById('ppName').textContent = user.displayName || user.email.split('@')[0];
+    document.getElementById('ppEmail').textContent = user.email;
+    document.getElementById('ppStatusText').textContent = currentStatus;
+    document.getElementById('ppStatusDot').style.background = STATUS_COLORS[currentStatus];
+  }
+}
+function closeProfilePopup(){
+  document.getElementById('profilePopup').classList.remove('open');
+}
+
+/* Presence / status */
+let currentStatus = 'Available';
+const STATUS_COLORS = { Available: '#57a300', Away: '#d97706', Busy: '#dc2626', Offline: '#8a8a8a' };
+const STATUS_ORDER = ['Available', 'Away', 'Busy', 'Offline'];
+
+function cycleStatus(){
+  const idx = STATUS_ORDER.indexOf(currentStatus);
+  currentStatus = STATUS_ORDER[(idx + 1) % STATUS_ORDER.length];
+  applyStatus();
+}
+function applyStatus(){
+  const color = STATUS_COLORS[currentStatus];
+  document.querySelectorAll('.nav-presence, .pp-dot').forEach(el => el.style.background = color);
+  const pp = document.getElementById('ppStatusText');
+  if(pp) pp.textContent = currentStatus;
+  const settingsStatus = document.getElementById('settingsStatus');
+  if(settingsStatus) settingsStatus.value = currentStatus;
+  showToast('Status set to ' + currentStatus);
+}
+
+/* Settings modal */
+function openSettings(){
+  closeProfilePopup();
+  if(typeof user !== 'undefined' && user) document.getElementById('settingsEmail').value = user.email;
+  document.getElementById('settingsStatus').value = currentStatus;
+  document.getElementById('settingsOverlay').style.display = 'flex';
+}
+function closeSettings(){
+  document.getElementById('settingsOverlay').style.display = 'none';
+}
+function signOut(){
+  closeProfilePopup();
+  closeSettings();
+  auth.signOut();
+}
+
+/* New chat modal */
+function createChat(){
+  document.getElementById('newChatName').value = '';
+  document.getElementById('newChatMember').value = '';
+  document.getElementById('newChatOverlay').style.display = 'flex';
+}
+function closeNewChat(){
+  document.getElementById('newChatOverlay').style.display = 'none';
+}
+function submitNewChat(){
+  const name = document.getElementById('newChatName').value.trim();
+  const memberEmail = document.getElementById('newChatMember').value.trim().toLowerCase();
+  if(!name){ showToast('Please enter a chat name'); return; }
+  const members = {};
+  members[myKey(user.email)] = true;
+  if(memberEmail) members[myKey(memberEmail)] = true;
+  db.ref('chats').push({ name: name, members: members }).then(()=>{
+    closeNewChat();
+    showToast('Chat created');
+  });
+}
+
+/* Sidebar search filter */
+function filterChats(){
+  const q = document.getElementById('chatSearch').value.trim().toLowerCase();
+  document.querySelectorAll('#chatList .chatItem').forEach(item => {
+    const nameEl = item.querySelector('.ci-name');
+    const name = nameEl ? nameEl.textContent.toLowerCase() : '';
+    item.style.display = name.includes(q) ? 'flex' : 'none';
+  });
+}
+
+/* Members panel */
+function toggleMembersPanel(){
+  const panel = document.getElementById('membersPanel');
+  const open = panel.classList.toggle('open');
+  if(open){
+    document.getElementById('emojiPicker').classList.remove('open');
+    loadMembersPanel();
+  }
+}
+function avatarColorFor(email){
+  const colors = ['#0f6cbd','#7c3aed','#16a34a','#dc2626','#d97706','#0891b2','#db2777'];
+  let hash = 0;
+  for(let i = 0; i < email.length; i++) hash = email.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+}
+function loadMembersPanel(){
+  if(!chatId) return;
+  db.ref('chats/' + chatId).once('value').then(snap => {
+    const c = snap.val();
+    const list = document.getElementById('membersList');
+    list.innerHTML = '';
+    if(c && c.members){
+      Object.keys(c.members).forEach(k => {
+        const email = k.replace(/_/g, '.');
+        const initials = email[0].toUpperCase();
+        const isMe = email === user.email;
+        const row = document.createElement('div');
+        row.className = 'member-row';
+        row.innerHTML =
+          '<div class="member-av" style="background:' + avatarColorFor(email) + '">' + initials +
+            '<div class="member-av-dot"></div>' +
+          '</div>' +
+          '<div class="member-info">' +
+            '<div class="member-name">' + email + (isMe ? ' (you)' : '') + '</div>' +
+            '<div class="member-role">Member</div>' +
+          '</div>';
+        list.appendChild(row);
+      });
+    }
+  });
+}
+function addMember(){
+  if(!chatId) return;
+  const email = prompt('Enter the email address to add to this chat:');
+  if(!email) return;
+  const clean = email.trim().toLowerCase();
+  const key = myKey(clean);
+  db.ref('chats/' + chatId + '/members/' + key).set(true).then(()=>{
+    db.ref('chats/' + chatId + '/messages').push({
+      sender: 'system',
+      text: user.email + ' added ' + clean,
+      time: Date.now()
+    });
+    showToast('Added ' + clean);
+    loadMembersPanel();
+  });
+}
+
+/* Pin chats */
+let pinnedChats = new Set();
+
+function togglePin(){
+  if(!chatId || typeof user === 'undefined' || !user) return;
+  const userKey = myKey(user.email);
+  if(pinnedChats.has(chatId)){
+    pinnedChats.delete(chatId);
+    db.ref('users/' + userKey + '/pinnedChats/' + chatId).remove();
+    showToast('Unpinned chat');
+  } else {
+    pinnedChats.add(chatId);
+    db.ref('users/' + userKey + '/pinnedChats/' + chatId).set(true);
+    showToast('Pinned chat');
+  }
+  updatePinUI();
+  updateChatItemPins();
+}
+function updatePinUI(){
+  const btn = document.getElementById('pinBtn');
+  if(!btn) return;
+  const isPinned = !!(chatId && pinnedChats.has(chatId));
+  btn.classList.toggle('active-pin', isPinned);
+  btn.innerHTML = isPinned ? '📌 Pinned' : '📌 Pin';
+}
+function updateChatItemPins(){
+  document.querySelectorAll('#chatList .chatItem').forEach(item => {
+    item.classList.toggle('pinned', pinnedChats.has(item.dataset.chatId));
+  });
+}
+function enhanceChatItem(item){
+  const nameEl = item.querySelector('.ci-name');
+  if(nameEl && !nameEl.querySelector('.ci-pin-badge')){
+    const badge = document.createElement('span');
+    badge.className = 'ci-pin-badge';
+    badge.textContent = '📌';
+    nameEl.insertBefore(badge, nameEl.firstChild);
+  }
+  if(pinnedChats.has(item.dataset.chatId)) item.classList.add('pinned');
+}
+
+/* Watch for new chat items being added to the sidebar so we can decorate them */
+const chatListObserver = new MutationObserver(mutations => {
+  mutations.forEach(m => {
+    m.addedNodes.forEach(node => {
+      if(node.nodeType === 1 && node.classList && node.classList.contains('chatItem')){
+        enhanceChatItem(node);
+      }
+    });
+  });
+});
+chatListObserver.observe(document.getElementById('chatList'), { childList: true });
+
+/* Keep the Pin button in sync with whichever chat is opened */
+document.getElementById('chatList').addEventListener('click', e => {
+  if(e.target.closest('.chatItem')) updatePinUI();
+});
+
+/* Load this user's pinned chats once auth is ready */
+function loadPinnedChats(){
+  const userKey = myKey(user.email);
+  db.ref('users/' + userKey + '/pinnedChats').on('value', snap => {
+    const val = snap.val();
+    pinnedChats = new Set(val ? Object.keys(val) : []);
+    updateChatItemPins();
+    updatePinUI();
+  });
+}
+(function waitForUser(){
+  if(typeof user !== 'undefined' && user){
+    loadPinnedChats();
+  } else {
+    setTimeout(waitForUser, 200);
+  }
+})();
+
+/* Composer toolbar: bold / italic — wraps the current selection in markdown markers */
+function wrapSelection(marker){
+  const el = document.getElementById('msg');
+  const start = el.selectionStart, end = el.selectionEnd;
+  const text = el.value;
+  const selected = text.slice(start, end) || 'text';
+  el.value = text.slice(0, start) + marker + selected + marker + text.slice(end);
+  el.focus();
+  el.selectionStart = start + marker.length;
+  el.selectionEnd = start + marker.length + selected.length;
+  autoResize(el);
+}
+
+/* Composer toolbar: attach */
+function handleFileAttach(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  showToast('Attached "' + file.name + '" - file uploads are not connected yet');
+  e.target.value = '';
+}
+
+/* Composer toolbar: emoji */
+const EMOJI_LIST = ['😀','😂','😍','👍','🙏','🎉','🔥','❤️','😢','😮','👏','🚀','✅','❓','💡','🤔','😎','🥳','👀','💯'];
+function toggleEmojiPicker(){
+  const picker = document.getElementById('emojiPicker');
+  if(picker.classList.contains('open')){
+    picker.classList.remove('open');
+    return;
+  }
+  document.getElementById('membersPanel').classList.remove('open');
+  picker.innerHTML = EMOJI_LIST.map(function(e){
+    return '<span class="emoji-opt" onclick="insertEmoji(\'' + e + '\')">' + e + '</span>';
+  }).join('');
+  picker.classList.add('open');
+}
+function insertEmoji(e){
+  const el = document.getElementById('msg');
+  el.value += e;
+  el.focus();
+  autoResize(el);
+  document.getElementById('emojiPicker').classList.remove('open');
+}
+
+/* Close floating panels when clicking outside them */
+document.addEventListener('click', e => {
+  const popup = document.getElementById('profilePopup');
+  const avatarWrap = document.querySelector('.nav-avatar-wrap');
+  if(popup.classList.contains('open') && !popup.contains(e.target) && avatarWrap && !avatarWrap.contains(e.target)){
+    popup.classList.remove('open');
+  }
+  const picker = document.getElementById('emojiPicker');
+  if(picker.classList.contains('open') && !picker.contains(e.target) && !e.target.closest('[title="Emoji"]')){
+    picker.classList.remove('open');
+  }
+});
 </script>
 
 </body>
