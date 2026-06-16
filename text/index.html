@@ -75,6 +75,7 @@
   <div id="sidebar">
     <div class="sidebar-top">
       <div class="sidebar-top-row">
+        <div class="sidebar-mobile-avatar" id="sidebarAvatar" onclick="toggleProfilePopup()">?</div>
         <div class="sidebar-title">Chat</div>
         <button class="sidebar-new-btn" onclick="createChat()" title="New chat">+</button>
       </div>
@@ -92,6 +93,7 @@
 
     <!-- Chat header -->
     <div id="chatHeader" style="display:none">
+      <button class="ch-back" onclick="goBackToList()" title="Back">←</button>
       <div class="ch-icon" id="chatHeaderIcon">💬</div>
       <div class="ch-info">
         <div class="ch-name" id="chatHeaderName">Select a chat</div>
@@ -99,10 +101,10 @@
       </div>
       <div class="ch-actions">
         <button class="ch-btn" onclick="startCall()" id="callBtn" style="display:none">
-          📞 Call
+          📞<span class="ch-btn-text"> Call</span>
         </button>
-        <button class="ch-btn" onclick="togglePin()" id="pinBtn">📌 Pin</button>
-        <button class="ch-btn" onclick="toggleMembersPanel()">👤 Members</button>
+        <button class="ch-btn" onclick="togglePin()" id="pinBtn">📌<span class="ch-btn-text"> Pin</span></button>
+        <button class="ch-btn" onclick="toggleMembersPanel()">👤<span class="ch-btn-text"> Members</span></button>
       </div>
     </div>
 
@@ -210,6 +212,25 @@
         <button class="ps-action-btn" onclick="showToast('The app directory is coming soon')">Browse apps</button>
       </div>
     </div>
+  </div>
+</div><!-- /#app -->
+
+<!-- MOBILE BOTTOM NAV -->
+<div id="mobileNav">
+  <div class="mnav-item active" data-view="chat" onclick="switchView('chat')">
+    <div class="mnav-icon">💬</div><div class="mnav-label">Chat</div>
+  </div>
+  <div class="mnav-item" data-view="teams" onclick="switchView('teams')">
+    <div class="mnav-icon">👥</div><div class="mnav-label">Teams</div>
+  </div>
+  <div class="mnav-item" data-view="calendar" onclick="switchView('calendar')">
+    <div class="mnav-icon">📅</div><div class="mnav-label">Calendar</div>
+  </div>
+  <div class="mnav-item" data-view="files" onclick="switchView('files')">
+    <div class="mnav-icon">📁</div><div class="mnav-label">Files</div>
+  </div>
+  <div class="mnav-item" data-view="apps" onclick="switchView('apps')">
+    <div class="mnav-icon">⚡</div><div class="mnav-label">Apps</div>
   </div>
 </div>
 
@@ -938,15 +959,16 @@ function showToast(msg, duration = 2500){
   t._hideTimer = setTimeout(()=>{ t.style.display = 'none'; }, duration);
 }
 
-/* Nav view switching (Chat / Teams / Calendar / Files / Apps) */
+/* Nav view switching — works for both desktop nav rail and mobile bottom nav */
 function switchView(view){
-  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-  const activeNav = document.querySelector('.nav-item[data-view="'+view+'"]');
-  if(activeNav) activeNav.classList.add('active');
+  document.querySelectorAll('.nav-item, .mnav-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('[data-view="'+view+'"]').forEach(el => el.classList.add('active'));
 
   const isChat = view === 'chat';
   document.getElementById('sidebar').style.display = isChat ? 'flex' : 'none';
   document.getElementById('main').style.display = isChat ? 'flex' : 'none';
+  // On mobile, going back to chat view always shows the list first
+  if (isChat) document.body.classList.remove('mobile-chat-open');
 
   document.querySelectorAll('.nav-view').forEach(el => el.classList.remove('active'));
   if(!isChat){
@@ -955,7 +977,18 @@ function switchView(view){
   }
 }
 
-/* Profile popup */
+/* Mobile: back arrow in the chat header returns to the chat list */
+function goBackToList(){
+  document.body.classList.remove('mobile-chat-open');
+}
+
+/* Mobile: open conversation from the chat list */
+document.getElementById('chatList').addEventListener('click', e => {
+  if(e.target.closest('.chatItem')){
+    document.body.classList.add('mobile-chat-open');
+    updatePinUI();
+  }
+});
 function toggleProfilePopup(){
   const popup = document.getElementById('profilePopup');
   const open = popup.classList.toggle('open');
@@ -1150,9 +1183,12 @@ const chatListObserver = new MutationObserver(mutations => {
 });
 chatListObserver.observe(document.getElementById('chatList'), { childList: true });
 
-/* Keep the Pin button in sync with whichever chat is opened */
+/* Keep the Pin button in sync and open conversation on mobile */
 document.getElementById('chatList').addEventListener('click', e => {
-  if(e.target.closest('.chatItem')) updatePinUI();
+  if(e.target.closest('.chatItem')){
+    updatePinUI();
+    document.body.classList.add('mobile-chat-open');
+  }
 });
 
 /* Load this user's pinned chats once auth is ready */
@@ -1168,6 +1204,8 @@ function loadPinnedChats(){
 (function waitForUser(){
   if(typeof user !== 'undefined' && user){
     loadPinnedChats();
+    const sa = document.getElementById('sidebarAvatar');
+    if(sa) sa.textContent = user.email[0].toUpperCase();
   } else {
     setTimeout(waitForUser, 200);
   }
@@ -1220,7 +1258,10 @@ function insertEmoji(e){
 document.addEventListener('click', e => {
   const popup = document.getElementById('profilePopup');
   const avatarWrap = document.querySelector('.nav-avatar-wrap');
-  if(popup.classList.contains('open') && !popup.contains(e.target) && avatarWrap && !avatarWrap.contains(e.target)){
+  const sidebarAvatar = document.getElementById('sidebarAvatar');
+  const clickedTrigger = (avatarWrap && avatarWrap.contains(e.target)) ||
+                         (sidebarAvatar && sidebarAvatar.contains(e.target));
+  if(popup.classList.contains('open') && !popup.contains(e.target) && !clickedTrigger){
     popup.classList.remove('open');
   }
   const picker = document.getElementById('emojiPicker');
@@ -1229,6 +1270,388 @@ document.addEventListener('click', e => {
   }
 });
 </script>
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   FEATURE 1 — DM NAMING
+   For 1-on-1 chats, display the OTHER person's name
+   instead of the stored chat name. Group chats (3+
+   members OR flagged as group) keep their own name.
+   ═══════════════════════════════════════════════════════ */
+
+/**
+ * Given a chat's members map and the current user's email,
+ * return the display label for this conversation.
+ * - 1 other member  → that member's email (or resolved display name)
+ * - 2+ other members → stored chat name (group)
+ */
+function getChatLabel(chatData, myEmail) {
+  const members = chatData.members ? Object.keys(chatData.members).map(k => k.replace(/_/g, '.')) : [];
+  const others = members.filter(e => e !== myEmail);
+
+  // Group chat: more than one other person, or explicitly flagged
+  if (others.length !== 1 || chatData.isGroup) {
+    return chatData.name || 'Chat';
+  }
+
+  // DM: return the other person's email as the label
+  // (will be enriched with a display name if one is stored)
+  return others[0];
+}
+
+/**
+ * Overrides the original loadChats to use DM-aware labels.
+ * Wraps the DB listener so sidebar items show the correct name.
+ */
+(function patchLoadChats() {
+  // Wait until auth + db are ready, then re-wire loadChats
+  function tryPatch() {
+    if (typeof db === 'undefined' || typeof user === 'undefined' || !user) {
+      setTimeout(tryPatch, 150);
+      return;
+    }
+
+    // Clear any chat items already added by the original loadChats
+    // (the original fires synchronously after auth; we race here, so
+    //  we just enhance whatever is already rendered and future ones)
+    db.ref('chats').on('child_added', snap => {
+      const c = snap.val();
+      const key = user.email.replace(/\./g, '_');
+      if (!c.members || !c.members[key]) return;
+
+      const label = getChatLabel(c, user.email);
+      const members = c.members ? Object.keys(c.members).map(k => k.replace(/_/g, '.')) : [];
+      const others = members.filter(e => e !== user.email);
+      const isDM = others.length === 1 && !c.isGroup;
+
+      // Update any sidebar item that already exists for this chat
+      const existing = document.querySelector('.chatItem[data-chat-id="' + snap.key + '"]') ||
+                       [...document.querySelectorAll('.chatItem')].find(el => el.dataset.chatId === snap.key);
+      if (existing) {
+        const nameEl = existing.querySelector('.ci-name');
+        if (nameEl) {
+          // Preserve pin badge if present
+          const badge = nameEl.querySelector('.ci-pin-badge');
+          nameEl.textContent = label;
+          if (badge) nameEl.insertBefore(badge, nameEl.firstChild);
+        }
+        const avatarEl = existing.querySelector('.ci-avatar');
+        if (avatarEl) avatarEl.textContent = label[0].toUpperCase();
+
+        // Attach a live presence dot to the avatar for DMs
+        if (isDM) attachPresenceDot(existing, others[0]);
+      }
+    });
+
+    // Intercept openChat to fix the header name for DMs
+    const _origOpenChat = openChat;
+    window.openChat = function(id, name) {
+      _origOpenChat(id, name);
+
+      db.ref('chats/' + id).once('value').then(snap => {
+        const c = snap.val();
+        if (!c) return;
+        const label = getChatLabel(c, user.email);
+        document.getElementById('chatHeaderName').textContent = label;
+        document.getElementById('chatHeaderIcon').textContent = label[0].toUpperCase();
+
+        // For DMs: show the other person's live status in the header
+        const members = c.members ? Object.keys(c.members).map(k => k.replace(/_/g, '.')) : [];
+        const others = members.filter(e => e !== user.email);
+        if (others.length === 1 && !c.isGroup) {
+          watchHeaderPresence(others[0]);
+        } else {
+          const sub = document.getElementById('chatHeaderMembers');
+          // header members line already set by original openChat
+        }
+      });
+    };
+
+    // Intercept submitNewChat so 1:1 chats get flagged properly
+    // (group chats made via the modal stay as groups)
+    const _origSubmit = submitNewChat;
+    window.submitNewChat = function() {
+      // Read the inputs before the original clears them
+      const nameVal = (document.getElementById('newChatName').value || '').trim();
+      const memberVal = (document.getElementById('newChatMember').value || '').trim().toLowerCase();
+      const memberCount = memberVal ? 1 : 0; // only 1 extra member invited
+
+      // If exactly one other member → this is a DM; don't store a custom name
+      // We still call the original but patch the push to add isGroup flag when
+      // there are 0 extra members (self-chat) or more later
+      // For now: mark as group only if the user typed a name AND no member,
+      // or if there are 3+ members in future. Here we just let it through —
+      // getChatLabel already handles the 1-other-member case automatically.
+      _origSubmit();
+    };
+  }
+
+  tryPatch();
+})();
+
+/* Watch another user's presence and update the chat header subtitle */
+let headerPresenceRef = null;
+function watchHeaderPresence(email) {
+  if (headerPresenceRef) headerPresenceRef.off();
+  const key = email.replace(/\./g, '_');
+  headerPresenceRef = db.ref('presence/' + key);
+  headerPresenceRef.on('value', snap => {
+    const p = snap.val();
+    const status = p && p.status ? p.status : 'Offline';
+    const color = STATUS_COLORS[status] || '#8a8a8a';
+    const sub = document.getElementById('chatHeaderMembers');
+    if (sub) {
+      sub.innerHTML =
+        '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' +
+        color + ';margin-right:5px;vertical-align:middle"></span>' +
+        '<span style="vertical-align:middle">' + status + ' · ' + email + '</span>';
+    }
+  });
+}
+
+/* Attach a small live-status dot to a sidebar chat item (DMs only) */
+const presenceDotWatchers = {}; // email → unsubscribe fn
+
+function attachPresenceDot(itemEl, email) {
+  const avatarEl = itemEl.querySelector('.ci-avatar');
+  if (!avatarEl) return;
+
+  // Remove stale dot
+  const old = avatarEl.querySelector('.ci-live-dot');
+  if (old) old.remove();
+
+  const dot = document.createElement('div');
+  dot.className = 'ci-live-dot';
+  avatarEl.appendChild(dot);
+
+  const key = email.replace(/\./g, '_');
+  const ref = db.ref('presence/' + key);
+
+  if (presenceDotWatchers[email]) presenceDotWatchers[email]();
+
+  const handler = ref.on('value', snap => {
+    const p = snap.val();
+    const status = (p && p.status) ? p.status : 'Offline';
+    dot.style.background = STATUS_COLORS[status] || '#8a8a8a';
+    dot.title = status;
+  });
+
+  presenceDotWatchers[email] = () => ref.off('value', handler);
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   FEATURE 2 — LIVE PRESENCE TRACKING
+   Writes this user's status to Firebase in real-time.
+   Rules:
+     Available  — tab visible + activity in last 5 min
+     Away       — tab visible but idle 5–15 min
+     Busy       — tab visible but idle 15+ min (or in a call)
+     Offline    — tab hidden / window blurred + idle > 1 min
+   Also subscribes to other users' presence nodes and
+   renders live status dots throughout the UI.
+   ═══════════════════════════════════════════════════════ */
+
+const PRESENCE_HEARTBEAT_MS  = 20_000;  // write to Firebase every 20 s
+const IDLE_AWAY_MS           = 5 * 60_000;  // 5 min → Away
+const IDLE_BUSY_MS           = 15 * 60_000; // 15 min → Busy (repurposed as "deep focus")
+const OFFLINE_BLUR_MS        = 60_000;      // 1 min after tab hides → Offline
+
+let lastActivityTime = Date.now();
+let presenceInterval = null;
+let offlineTimer = null;
+let presenceRef = null;  // db ref for this user
+
+/* Record any mouse/keyboard activity */
+['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'].forEach(evt => {
+  window.addEventListener(evt, () => { lastActivityTime = Date.now(); }, { passive: true });
+});
+
+/** Compute the status the current user SHOULD have right now */
+function computeMyStatus() {
+  const idleMs = Date.now() - lastActivityTime;
+  const hidden  = document.hidden;
+
+  if (hidden && idleMs > OFFLINE_BLUR_MS) return 'Offline';
+  if (idleMs > IDLE_BUSY_MS)  return 'Busy';
+  if (idleMs > IDLE_AWAY_MS)  return 'Away';
+  return 'Available';
+}
+
+/** Push our status + timestamp to Firebase */
+function pushMyPresence(statusOverride) {
+  if (!presenceRef) return;
+  const status = statusOverride || computeMyStatus();
+  presenceRef.set({ status, lastSeen: Date.now() });
+
+  // Keep local UI in sync only if user hasn't manually overridden
+  if (!manualStatusOverride) {
+    currentStatus = status;
+    applyStatusSilent(status);
+  }
+}
+
+/** Like applyStatus() but doesn't show a toast (for automatic changes) */
+function applyStatusSilent(status) {
+  const color = STATUS_COLORS[status] || '#8a8a8a';
+  document.querySelectorAll('.nav-presence, .pp-dot').forEach(el => el.style.background = color);
+  const pp = document.getElementById('ppStatusText');
+  if (pp) pp.textContent = status;
+  const ss = document.getElementById('settingsStatus');
+  if (ss) ss.value = status;
+}
+
+/** True when the user has manually cycled their status (suppress auto changes) */
+let manualStatusOverride = false;
+let manualOverrideTimer = null;
+
+/* Patch cycleStatus to flag manual override for 30 min */
+const _origCycleStatus = cycleStatus;
+window.cycleStatus = function() {
+  manualStatusOverride = true;
+  clearTimeout(manualOverrideTimer);
+  manualOverrideTimer = setTimeout(() => { manualStatusOverride = false; }, 30 * 60_000);
+  _origCycleStatus();
+  // Also write the manually chosen status to Firebase
+  if (presenceRef) presenceRef.set({ status: currentStatus, lastSeen: Date.now() });
+};
+
+/* Patch applyStatus so manual changes also persist to Firebase */
+const _origApplyStatus = applyStatus;
+window.applyStatus = function() {
+  _origApplyStatus();
+  if (presenceRef) presenceRef.set({ status: currentStatus, lastSeen: Date.now() });
+};
+
+/* Tab visibility changes */
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    // Start a timer: if still hidden after OFFLINE_BLUR_MS, go Offline
+    offlineTimer = setTimeout(() => pushMyPresence('Offline'), OFFLINE_BLUR_MS);
+  } else {
+    clearTimeout(offlineTimer);
+    lastActivityTime = Date.now();
+    pushMyPresence();
+  }
+});
+
+/** Initialise presence for the signed-in user.
+ *  Called once auth fires (we poll for `user`). */
+function initPresence() {
+  const key = user.email.replace(/\./g, '_');
+  presenceRef = db.ref('presence/' + key);
+
+  // Write immediately
+  pushMyPresence('Available');
+
+  // Heartbeat
+  presenceInterval = setInterval(pushMyPresence, PRESENCE_HEARTBEAT_MS);
+
+  // Mark Offline on tab close / refresh using Firebase onDisconnect
+  presenceRef.onDisconnect().set({ status: 'Offline', lastSeen: Date.now() });
+
+  // Subscribe to ALL users' presence so we can update sidebar dots
+  db.ref('presence').on('child_changed', snap => {
+    const email = snap.key.replace(/_/g, '.');
+    const p = snap.val();
+    updatePresenceDots(email, p ? p.status : 'Offline');
+  });
+
+  db.ref('presence').on('child_added', snap => {
+    const email = snap.key.replace(/_/g, '.');
+    const p = snap.val();
+    updatePresenceDots(email, p ? p.status : 'Offline');
+  });
+}
+
+/** Update every rendered dot for a given email */
+function updatePresenceDots(email, status) {
+  const color = STATUS_COLORS[status] || '#8a8a8a';
+
+  // Sidebar live dots on DM items
+  document.querySelectorAll('.ci-live-dot[data-email="' + email + '"]').forEach(dot => {
+    dot.style.background = color;
+  });
+
+  // Member panel rows
+  document.querySelectorAll('.member-av-dot[data-email="' + email + '"]').forEach(dot => {
+    dot.style.background = color;
+  });
+
+  // Chat header if this is the open DM partner
+  const headerSub = document.getElementById('chatHeaderMembers');
+  if (headerSub && headerSub.dataset.presenceEmail === email) {
+    watchHeaderPresence(email); // re-run to refresh
+  }
+}
+
+/* Boot presence once user is ready */
+(function waitForPresence() {
+  if (typeof user !== 'undefined' && user && typeof db !== 'undefined') {
+    initPresence();
+  } else {
+    setTimeout(waitForPresence, 200);
+  }
+})();
+
+/* Also patch loadMembersPanel so member rows show live status dots */
+const _origLoadMembersPanel = loadMembersPanel;
+window.loadMembersPanel = function() {
+  _origLoadMembersPanel();
+  // After the panel renders, attach live dots
+  setTimeout(() => {
+    if (!chatId) return;
+    db.ref('chats/' + chatId).once('value').then(snap => {
+      const c = snap.val();
+      if (!c || !c.members) return;
+      Object.keys(c.members).forEach(k => {
+        const email = k.replace(/_/g, '.');
+        // Find the member-av-dot for this email and attach a watcher
+        const rows = document.querySelectorAll('.member-row');
+        rows.forEach(row => {
+          const nameEl = row.querySelector('.member-name');
+          if (!nameEl) return;
+          const rowEmail = nameEl.textContent.replace(' (you)', '').trim();
+          if (rowEmail !== email) return;
+          const dot = row.querySelector('.member-av-dot');
+          if (!dot) return;
+          dot.setAttribute('data-email', email);
+
+          // Get current presence
+          db.ref('presence/' + k).once('value').then(ps => {
+            const p = ps.val();
+            const status = (p && p.status) ? p.status : 'Offline';
+            dot.style.background = STATUS_COLORS[status] || '#8a8a8a';
+            dot.title = status;
+
+            // Live watcher
+            db.ref('presence/' + k).on('value', live => {
+              const lp = live.val();
+              const ls = (lp && lp.status) ? lp.status : 'Offline';
+              dot.style.background = STATUS_COLORS[ls] || '#8a8a8a';
+              dot.title = ls;
+            });
+          });
+        });
+      });
+    });
+  }, 200);
+};
+
+</script>
+
+<style>
+/* Live presence dot on sidebar DM avatars */
+.ci-live-dot {
+  position: absolute;
+  bottom: -2px; right: -2px;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: #8a8a8a;
+  border: 2px solid var(--sidebar-bg);
+  pointer-events: none;
+}
+</style>
 
 </body>
 </html>
