@@ -589,9 +589,17 @@ auth.onAuthStateChanged(u => {
     user = u;
     setupNotifications();
 
+    // Store this user's profile so others can resolve their display name
+    const profileKey = myKey(u.email);
+    db.ref('profiles/' + profileKey).set({
+      displayName: u.displayName || u.email.split('@')[0],
+      email: u.email,
+      photoURL: u.photoURL || null
+    });
+
     document.getElementById('loading').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
-    const initials = u.email[0].toUpperCase();
+    const initials = (u.displayName || u.email)[0].toUpperCase();
     document.getElementById('navAvatar').textContent = initials;
     loadChats();
     listenCalls();
@@ -637,7 +645,7 @@ function loadChats(){
       <div class="ci-avatar group">${initial}</div>
       <div class="ci-body">
         <div class="ci-top">
-          <div class="ci-name">${c.name}</div>
+          <div class="ci-name" style="visibility:hidden"></div>
           <div class="ci-time">Now</div>
         </div>
         <div class="ci-preview">Click to open conversation</div>
@@ -708,25 +716,33 @@ function openChat(id, name){
     }
 
     const isMe = m.sender === user.email;
-    const initials = m.sender ? m.sender[0].toUpperCase() : '?';
     const avatarColor = isMe ? 'background:var(--blue)' : 'background:#7c3aed';
 
-    const row = document.createElement('div');
-    row.className = 'msgGroup' + (isMe ? ' me' : '');
+    // Resolve sender display name, then render the bubble
+    const senderEmail = m.sender || '';
+    const namePromise = isMe
+      ? Promise.resolve('You')
+      : (typeof resolveDisplayName === 'function'
+          ? resolveDisplayName(senderEmail)
+          : Promise.resolve(senderEmail.split('@')[0]));
 
-    row.innerHTML = `
-      <div class="mg-avatar" style="${avatarColor}">${initials}</div>
-      <div class="mg-body">
-        <div class="mg-header">
-          <span class="mg-sender">${isMe ? 'You' : m.sender}</span>
-          <span class="mg-time">${m.time ? formatTime(m.time) : ''}</span>
+    namePromise.then(senderName => {
+      const initials = senderName[0].toUpperCase();
+      const row = document.createElement('div');
+      row.className = 'msgGroup' + (isMe ? ' me' : '');
+      row.innerHTML = `
+        <div class="mg-avatar" style="${avatarColor}">${initials}</div>
+        <div class="mg-body">
+          <div class="mg-header">
+            <span class="mg-sender">${senderName}</span>
+            <span class="mg-time">${m.time ? formatTime(m.time) : ''}</span>
+          </div>
+          <div class="bubble${isMe?' me':''}">${m.text || ''}</div>
         </div>
-        <div class="bubble${isMe?' me':''}">${m.text || ''}</div>
-      </div>
-    `;
-
-    chatEl.appendChild(row);
-    chatEl.scrollTop = chatEl.scrollHeight;
+      `;
+      chatEl.appendChild(row);
+      chatEl.scrollTop = chatEl.scrollHeight;
+    });
   };
 
   // 🚀 attach ONCE only
@@ -1274,76 +1290,103 @@ document.addEventListener('click', e => {
 <script>
 /* ═══════════════════════════════════════════════════════
    FEATURE 1 — DM NAMING
-   For 1-on-1 chats, display the OTHER person's name
-   instead of the stored chat name. Group chats (3+
-   members OR flagged as group) keep their own name.
+   For 1-on-1 chats, show the OTHER person's real name
+   (fetched from profiles/ in Firebase, written on login).
+   Group chats keep their stored name.
    ═══════════════════════════════════════════════════════ */
 
+/* Cache of email → display name so we don't re-fetch constantly */
+const displayNameCache = {};
+
 /**
- * Given a chat's members map and the current user's email,
- * return the display label for this conversation.
- * - 1 other member  → that member's email (or resolved display name)
- * - 2+ other members → stored chat name (group)
+ * Resolve a user's display name.
+ * Returns a Promise<string> — the person's name, or their email prefix as fallback.
  */
-function getChatLabel(chatData, myEmail) {
-  const members = chatData.members ? Object.keys(chatData.members).map(k => k.replace(/_/g, '.')) : [];
-  const others = members.filter(e => e !== myEmail);
-
-  // Group chat: more than one other person, or explicitly flagged
-  if (others.length !== 1 || chatData.isGroup) {
-    return chatData.name || 'Chat';
-  }
-
-  // DM: return the other person's email as the label
-  // (will be enriched with a display name if one is stored)
-  return others[0];
+function resolveDisplayName(email) {
+  if (displayNameCache[email]) return Promise.resolve(displayNameCache[email]);
+  const key = email.replace(/\./g, '_');
+  return db.ref('profiles/' + key + '/displayName').once('value').then(snap => {
+    const name = snap.val() || email.split('@')[0];
+    displayNameCache[email] = name;
+    return name;
+  });
 }
 
 /**
- * Overrides the original loadChats to use DM-aware labels.
- * Wraps the DB listener so sidebar items show the correct name.
+ * Given chat data and current user's email, return:
+ *  - for DMs  → a Promise<string> resolving to the other person's display name
+ *  - for groups → a Promise<string> resolving to the stored chat name
  */
+function getChatLabel(chatData, myEmail) {
+  const members = chatData.members
+    ? Object.keys(chatData.members).map(k => k.replace(/_/g, '.'))
+    : [];
+  const others = members.filter(e => e !== myEmail);
+
+  if (others.length !== 1 || chatData.isGroup) {
+    return Promise.resolve(chatData.name || 'Chat');
+  }
+
+  return resolveDisplayName(others[0]);
+}
+
+/** Apply a resolved label to a sidebar chat item element */
+function applyChatItemLabel(itemEl, label) {
+  const nameEl = itemEl.querySelector('.ci-name');
+
+  if (nameEl) {
+    const badge = nameEl.querySelector('.ci-pin-badge');
+
+    nameEl.textContent = label;
+    nameEl.style.visibility = 'visible';
+
+    if (badge) {
+      nameEl.insertBefore(badge, nameEl.firstChild);
+    }
+  }
+
+  const avatarEl = itemEl.querySelector('.ci-avatar');
+
+  if (avatarEl) {
+    const dot = avatarEl.querySelector('.ci-live-dot');
+
+    avatarEl.textContent = label[0].toUpperCase();
+
+    if (dot) {
+      avatarEl.appendChild(dot);
+    }
+  }
+}
+
 (function patchLoadChats() {
-  // Wait until auth + db are ready, then re-wire loadChats
   function tryPatch() {
     if (typeof db === 'undefined' || typeof user === 'undefined' || !user) {
       setTimeout(tryPatch, 150);
       return;
     }
 
-    // Clear any chat items already added by the original loadChats
-    // (the original fires synchronously after auth; we race here, so
-    //  we just enhance whatever is already rendered and future ones)
+    // Listen for chats and update sidebar labels with real names
     db.ref('chats').on('child_added', snap => {
       const c = snap.val();
       const key = user.email.replace(/\./g, '_');
       if (!c.members || !c.members[key]) return;
 
-      const label = getChatLabel(c, user.email);
       const members = c.members ? Object.keys(c.members).map(k => k.replace(/_/g, '.')) : [];
       const others = members.filter(e => e !== user.email);
       const isDM = others.length === 1 && !c.isGroup;
 
-      // Update any sidebar item that already exists for this chat
-      const existing = document.querySelector('.chatItem[data-chat-id="' + snap.key + '"]') ||
-                       [...document.querySelectorAll('.chatItem')].find(el => el.dataset.chatId === snap.key);
-      if (existing) {
-        const nameEl = existing.querySelector('.ci-name');
-        if (nameEl) {
-          // Preserve pin badge if present
-          const badge = nameEl.querySelector('.ci-pin-badge');
-          nameEl.textContent = label;
-          if (badge) nameEl.insertBefore(badge, nameEl.firstChild);
+      getChatLabel(c, user.email).then(label => {
+        // Find the sidebar item (may already exist from original loadChats)
+        const existing = [...document.querySelectorAll('.chatItem')]
+          .find(el => el.dataset.chatId === snap.key);
+        if (existing) {
+          applyChatItemLabel(existing, label);
+          if (isDM) attachPresenceDot(existing, others[0]);
         }
-        const avatarEl = existing.querySelector('.ci-avatar');
-        if (avatarEl) avatarEl.textContent = label[0].toUpperCase();
-
-        // Attach a live presence dot to the avatar for DMs
-        if (isDM) attachPresenceDot(existing, others[0]);
-      }
+      });
     });
 
-    // Intercept openChat to fix the header name for DMs
+    // Intercept openChat to show real name in the header
     const _origOpenChat = openChat;
     window.openChat = function(id, name) {
       _origOpenChat(id, name);
@@ -1351,38 +1394,17 @@ function getChatLabel(chatData, myEmail) {
       db.ref('chats/' + id).once('value').then(snap => {
         const c = snap.val();
         if (!c) return;
-        const label = getChatLabel(c, user.email);
-        document.getElementById('chatHeaderName').textContent = label;
-        document.getElementById('chatHeaderIcon').textContent = label[0].toUpperCase();
 
-        // For DMs: show the other person's live status in the header
         const members = c.members ? Object.keys(c.members).map(k => k.replace(/_/g, '.')) : [];
         const others = members.filter(e => e !== user.email);
-        if (others.length === 1 && !c.isGroup) {
-          watchHeaderPresence(others[0]);
-        } else {
-          const sub = document.getElementById('chatHeaderMembers');
-          // header members line already set by original openChat
-        }
+        const isDM = others.length === 1 && !c.isGroup;
+
+        getChatLabel(c, user.email).then(label => {
+          document.getElementById('chatHeaderName').textContent = label;
+          document.getElementById('chatHeaderIcon').textContent = label[0].toUpperCase();
+          if (isDM) watchHeaderPresence(others[0]);
+        });
       });
-    };
-
-    // Intercept submitNewChat so 1:1 chats get flagged properly
-    // (group chats made via the modal stay as groups)
-    const _origSubmit = submitNewChat;
-    window.submitNewChat = function() {
-      // Read the inputs before the original clears them
-      const nameVal = (document.getElementById('newChatName').value || '').trim();
-      const memberVal = (document.getElementById('newChatMember').value || '').trim().toLowerCase();
-      const memberCount = memberVal ? 1 : 0; // only 1 extra member invited
-
-      // If exactly one other member → this is a DM; don't store a custom name
-      // We still call the original but patch the push to add isGroup flag when
-      // there are 0 extra members (self-chat) or more later
-      // For now: mark as group only if the user typed a name AND no member,
-      // or if there are 3+ members in future. Here we just let it through —
-      // getChatLabel already handles the 1-other-member case automatically.
-      _origSubmit();
     };
   }
 
@@ -1397,26 +1419,27 @@ function watchHeaderPresence(email) {
   headerPresenceRef = db.ref('presence/' + key);
   headerPresenceRef.on('value', snap => {
     const p = snap.val();
-    const status = p && p.status ? p.status : 'Offline';
+    const status = (p && p.status) ? p.status : 'Offline';
     const color = STATUS_COLORS[status] || '#8a8a8a';
-    const sub = document.getElementById('chatHeaderMembers');
-    if (sub) {
-      sub.innerHTML =
-        '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' +
-        color + ';margin-right:5px;vertical-align:middle"></span>' +
-        '<span style="vertical-align:middle">' + status + ' · ' + email + '</span>';
-    }
+    resolveDisplayName(email).then(name => {
+      const sub = document.getElementById('chatHeaderMembers');
+      if (sub) {
+        sub.innerHTML =
+          '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' +
+          color + ';margin-right:5px;vertical-align:middle"></span>' +
+          '<span style="vertical-align:middle">' + status + ' · ' + name + '</span>';
+      }
+    });
   });
 }
 
 /* Attach a small live-status dot to a sidebar chat item (DMs only) */
-const presenceDotWatchers = {}; // email → unsubscribe fn
+const presenceDotWatchers = {};
 
 function attachPresenceDot(itemEl, email) {
   const avatarEl = itemEl.querySelector('.ci-avatar');
   if (!avatarEl) return;
 
-  // Remove stale dot
   const old = avatarEl.querySelector('.ci-live-dot');
   if (old) old.remove();
 
@@ -1594,48 +1617,45 @@ function updatePresenceDots(email, status) {
   }
 })();
 
-/* Also patch loadMembersPanel so member rows show live status dots */
+/* Also patch loadMembersPanel so member rows show live status dots and real names */
 const _origLoadMembersPanel = loadMembersPanel;
 window.loadMembersPanel = function() {
-  _origLoadMembersPanel();
-  // After the panel renders, attach live dots
-  setTimeout(() => {
-    if (!chatId) return;
-    db.ref('chats/' + chatId).once('value').then(snap => {
-      const c = snap.val();
-      if (!c || !c.members) return;
-      Object.keys(c.members).forEach(k => {
-        const email = k.replace(/_/g, '.');
-        // Find the member-av-dot for this email and attach a watcher
-        const rows = document.querySelectorAll('.member-row');
-        rows.forEach(row => {
-          const nameEl = row.querySelector('.member-name');
-          if (!nameEl) return;
-          const rowEmail = nameEl.textContent.replace(' (you)', '').trim();
-          if (rowEmail !== email) return;
-          const dot = row.querySelector('.member-av-dot');
-          if (!dot) return;
-          dot.setAttribute('data-email', email);
+  if (!chatId) return;
+  db.ref('chats/' + chatId).once('value').then(snap => {
+    const c = snap.val();
+    const list = document.getElementById('membersList');
+    list.innerHTML = '';
+    if (!c || !c.members) return;
 
-          // Get current presence
-          db.ref('presence/' + k).once('value').then(ps => {
-            const p = ps.val();
-            const status = (p && p.status) ? p.status : 'Offline';
-            dot.style.background = STATUS_COLORS[status] || '#8a8a8a';
-            dot.title = status;
+    Object.keys(c.members).forEach(k => {
+      const email = k.replace(/_/g, '.');
+      const isMe = email === user.email;
 
-            // Live watcher
-            db.ref('presence/' + k).on('value', live => {
-              const lp = live.val();
-              const ls = (lp && lp.status) ? lp.status : 'Offline';
-              dot.style.background = STATUS_COLORS[ls] || '#8a8a8a';
-              dot.title = ls;
-            });
-          });
+      resolveDisplayName(email).then(name => {
+        const initials = name[0].toUpperCase();
+        const row = document.createElement('div');
+        row.className = 'member-row';
+        row.innerHTML =
+          '<div class="member-av" style="background:' + avatarColorFor(email) + '">' + initials +
+            '<div class="member-av-dot" data-email="' + email + '"></div>' +
+          '</div>' +
+          '<div class="member-info">' +
+            '<div class="member-name">' + name + (isMe ? ' (you)' : '') + '</div>' +
+            '<div class="member-role">Member</div>' +
+          '</div>';
+        list.appendChild(row);
+
+        // Wire live presence dot
+        const dot = row.querySelector('.member-av-dot');
+        db.ref('presence/' + k).on('value', ps => {
+          const p = ps.val();
+          const status = (p && p.status) ? p.status : 'Offline';
+          dot.style.background = STATUS_COLORS[status] || '#8a8a8a';
+          dot.title = status;
         });
       });
     });
-  }, 200);
+  });
 };
 
 </script>

@@ -300,6 +300,15 @@ body {
 .ch-btn:hover { background: var(--blue-xlight); border-color: var(--blue-light); color: var(--blue-dark); }
 .ch-btn.primary { background: var(--blue); border-color: var(--blue); color: white; }
 .ch-btn.primary:hover { background: var(--blue-dark); }
+.ch-btn.ch-btn-danger { color: #dc2626; }
+.ch-btn.ch-btn-danger:hover { background: #fef2f2; border-color: #fca5a5; color: #dc2626; }
+.ch-btn.ch-btn-danger.blocked { background: #fef2f2; border-color: #fca5a5; color: #dc2626; font-weight: 600; }
+
+/* Block button hidden until a DM is open (JS sets display:'') */
+#blockBtn { display: none; }
+
+.modal-btn-danger { background: #dc2626; color: white; }
+.modal-btn-danger:hover { background: #b91c1c; }
 /* Text label inside header buttons — hidden on mobile */
 .ch-btn-text { }
 
@@ -853,4 +862,8 @@ body {
   #selfVideo { width: 110px; height: 78px; bottom: 100px; right: 14px; }
   #videoGrid { grid-template-columns: 1fr; }
   .ctrl-label { display: none; }
+}
+
+.ci-name {
+  visibility: hidden;
 }
