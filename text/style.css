@@ -241,6 +241,8 @@ body {
   font-size: 13px; font-weight: 500; color: var(--text-primary);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* Only unresolved names are hidden — scoped class, not the global element */
+.ci-name-pending { visibility: hidden; }
 .ci-time { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
 .ci-preview { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
 
@@ -862,8 +864,4 @@ body {
   #selfVideo { width: 110px; height: 78px; bottom: 100px; right: 14px; }
   #videoGrid { grid-template-columns: 1fr; }
   .ctrl-label { display: none; }
-}
-
-.ci-name {
-  visibility: hidden;
 }

@@ -69,8 +69,6 @@
     </div>
   </div>
 
-
-
   <!-- SIDEBAR -->
   <div id="sidebar">
     <div class="sidebar-top">
@@ -126,8 +124,8 @@
           <button class="toolbar-btn" title="Italic" onclick="wrapSelection('*')">𝐼</button>
           <button class="toolbar-btn" title="Attach" onclick="document.getElementById('fileInput').click()">📎</button>
           <button class="toolbar-btn" title="Emoji" onclick="toggleEmojiPicker()">😊</button>
-          <button class="toolbar-btn" title="GIF" onclick="showToast('GIF picker is coming soon')">GIF</button>
-          <input type="file" id="fileInput" style="display:none" onchange="handleFileAttach(event)">
+          <button class="toolbar-btn" title="GIF" onclick="toggleGifPicker()">GIF</button>
+          <input type="file" id="fileInput" style="display:none" accept="image/*,video/*,application/pdf,.doc,.docx,.txt" onchange="handleFileAttach(event)">
         </div>
         <div class="composer-input-row">
           <textarea id="msg" rows="1" placeholder="Type a message…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}" oninput="autoResize(this)"></textarea>
@@ -148,53 +146,83 @@
 
     <!-- Emoji picker -->
     <div id="emojiPicker"></div>
+    <!-- GIF picker -->
+    <div id="gifPicker">
+      <div class="gif-search-row">
+        <input id="gifSearch" placeholder="Search GIFs…" oninput="searchGifs(this.value)">
+      </div>
+      <div id="gifResults"></div>
+    </div>
+    <!-- Image preview -->
+    <div id="imagePreviewBar" style="display:none">
+      <div class="img-preview-inner">
+        <img id="imagePreviewThumb" src="" alt="preview">
+        <button class="img-preview-remove" onclick="clearImageAttach()">✕</button>
+        <span class="img-preview-name" id="imagePreviewName"></span>
+      </div>
+    </div>
   </div>
 
   <!-- TEAMS VIEW -->
   <div class="nav-view" id="view-teams">
-    <div class="nav-view-header">
-      <div class="nav-view-title">Teams</div>
-      <div class="nav-view-sub">Teams and channels you're part of</div>
+    <div class="nav-view-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <div>
+        <div class="nav-view-title">Teams</div>
+        <div class="nav-view-sub">Your teams and channels</div>
+      </div>
+      <button class="ps-action-btn" style="margin:0" onclick="openNewTeamModal()">+ New team</button>
     </div>
-    <div class="nav-view-body">
-      <div class="placeholder-section">
-        <div class="ps-icon">👥</div>
-        <div class="ps-title">No teams yet</div>
-        <div class="ps-sub">Teams and their channels will show up here once you create or join one.</div>
-        <button class="ps-action-btn" onclick="showToast('Team creation is coming soon')">Create a team</button>
+    <div class="teams-layout">
+      <div class="teams-sidebar" id="teamsSidebar">
+        <div class="teams-empty" id="teamsEmpty">
+          <div style="font-size:36px;opacity:0.3">👥</div>
+          <div style="font-size:13px;color:var(--text-muted);margin-top:8px">No teams yet</div>
+        </div>
+      </div>
+      <div class="teams-main" id="teamsMain">
+        <div class="teams-welcome">
+          <div style="font-size:44px;opacity:0.3">💬</div>
+          <div style="font-size:15px;font-weight:600;color:var(--text-secondary);margin-top:12px">Select a channel</div>
+          <div style="font-size:13px;color:var(--text-muted);margin-top:6px">Pick a team and channel from the left to start chatting</div>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- CALENDAR VIEW -->
   <div class="nav-view" id="view-calendar">
-    <div class="nav-view-header">
-      <div class="nav-view-title">Calendar</div>
-      <div class="nav-view-sub">Upcoming meetings and events</div>
-    </div>
-    <div class="nav-view-body">
-      <div class="placeholder-section">
-        <div class="ps-icon">📅</div>
-        <div class="ps-title">No events scheduled</div>
-        <div class="ps-sub">Your meetings and calls will appear here once scheduling is connected.</div>
-        <button class="ps-action-btn" onclick="showToast('Scheduling is coming soon')">New event</button>
+    <div class="nav-view-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <div>
+        <div class="nav-view-title">Calendar</div>
+        <div class="nav-view-sub">Your meetings and events</div>
       </div>
+      <button class="ps-action-btn" style="margin:0" onclick="openNewEventModal()">+ New event</button>
     </div>
+    <div class="cal-nav">
+      <button class="cal-nav-btn" onclick="calPrev()">&#8592;</button>
+      <div class="cal-month-label" id="calMonthLabel"></div>
+      <button class="cal-nav-btn" onclick="calNext()">&#8594;</button>
+    </div>
+    <div class="cal-grid-header">
+      <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="cal-upcoming" id="calUpcoming"></div>
   </div>
 
   <!-- FILES VIEW -->
   <div class="nav-view" id="view-files">
     <div class="nav-view-header">
       <div class="nav-view-title">Files</div>
-      <div class="nav-view-sub">Shared files across your chats</div>
+      <div class="nav-view-sub">Images shared across all your chats</div>
     </div>
-    <div class="nav-view-body">
-      <div class="placeholder-section">
-        <div class="ps-icon">📁</div>
-        <div class="ps-title">No files yet</div>
-        <div class="ps-sub">Files shared in your chats will be collected here for quick access.</div>
-        <button class="ps-action-btn" onclick="showToast('The file library is coming soon')">Upload a file</button>
-      </div>
+    <div class="files-filter-bar">
+      <button class="files-filter-btn active" data-filter="all" onclick="setFilesFilter('all',this)">All</button>
+      <button class="files-filter-btn" data-filter="image" onclick="setFilesFilter('image',this)">Images</button>
+      <button class="files-filter-btn" data-filter="gif" onclick="setFilesFilter('gif',this)">GIFs</button>
+    </div>
+    <div class="files-grid" id="filesGrid">
+      <div class="files-loading">Loading files…</div>
     </div>
   </div>
 
@@ -202,16 +230,16 @@
   <div class="nav-view" id="view-apps">
     <div class="nav-view-header">
       <div class="nav-view-title">Apps</div>
-      <div class="nav-view-sub">Extend TeamChat with integrations</div>
+      <div class="nav-view-sub">Integrations and tools for your team</div>
     </div>
-    <div class="nav-view-body">
-      <div class="placeholder-section">
-        <div class="ps-icon">⚡</div>
-        <div class="ps-title">No apps installed</div>
-        <div class="ps-sub">Connect tools like task boards, polls, and bots to bring them into your chats.</div>
-        <button class="ps-action-btn" onclick="showToast('The app directory is coming soon')">Browse apps</button>
-      </div>
+    <div class="apps-search-bar">
+      <span>🔍</span>
+      <input placeholder="Search apps…" id="appsSearch" oninput="filterApps(this.value)">
     </div>
+    <div class="apps-section-label">Installed</div>
+    <div class="apps-grid" id="appsInstalled"></div>
+    <div class="apps-section-label" style="margin-top:8px">Browse</div>
+    <div class="apps-grid" id="appsBrowse"></div>
   </div>
 </div><!-- /#app -->
 
@@ -231,6 +259,68 @@
   </div>
   <div class="mnav-item" data-view="apps" onclick="switchView('apps')">
     <div class="mnav-icon">⚡</div><div class="mnav-label">Apps</div>
+  </div>
+</div>
+
+<!-- New Team Modal -->
+<div class="modal-overlay" id="newTeamOverlay" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Create a team</div>
+      <button class="modal-close" onclick="closeNewTeamModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="form-label">Team name</label>
+      <input class="form-input" id="newTeamName" placeholder="e.g. Engineering">
+      <label class="form-label">Description (optional)</label>
+      <input class="form-input" id="newTeamDesc" placeholder="What is this team for?">
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-secondary" onclick="closeNewTeamModal()">Cancel</button>
+      <button class="modal-btn modal-btn-primary" onclick="submitNewTeam()">Create team</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Channel Modal -->
+<div class="modal-overlay" id="newChannelOverlay" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add a channel</div>
+      <button class="modal-close" onclick="closeNewChannelModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="form-label">Channel name</label>
+      <input class="form-input" id="newChannelName" placeholder="e.g. general">
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-secondary" onclick="closeNewChannelModal()">Cancel</button>
+      <button class="modal-btn modal-btn-primary" onclick="submitNewChannel()">Add channel</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Event Modal -->
+<div class="modal-overlay" id="newEventOverlay" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">New event</div>
+      <button class="modal-close" onclick="closeNewEventModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="form-label">Title</label>
+      <input class="form-input" id="eventTitle" placeholder="e.g. Team standup">
+      <label class="form-label">Date</label>
+      <input class="form-input" id="eventDate" type="date">
+      <label class="form-label">Time (optional)</label>
+      <input class="form-input" id="eventTime" type="time">
+      <label class="form-label">Notes (optional)</label>
+      <input class="form-input" id="eventDesc" placeholder="Any notes…">
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-secondary" onclick="closeNewEventModal()">Cancel</button>
+      <button class="modal-btn modal-btn-primary" onclick="submitNewEvent()">Save event</button>
+    </div>
   </div>
 </div>
 
@@ -316,7 +406,6 @@
 
   <!-- Video tiles -->
   <div id="videoGrid">
-    <!-- Remote tile (main) -->
     <div class="participant-tile main-tile" id="remoteTile">
       <video id="remoteVideo" class="tile-video" autoplay playsinline style="display:none"></video>
       <div class="tile-avatar-wrap" id="remoteAvatarWrap">
@@ -357,9 +446,7 @@
         <span class="ctrl-label">Camera</span>
       </div>
     </div>
-
     <div class="ctrl-divider"></div>
-
     <div class="ctrl-group">
       <div class="ctrl-wrap">
         <button class="ctrl ctrl-default" id="screenBtn" onclick="toggleScreen()" title="Share screen">🖥️</button>
@@ -378,9 +465,7 @@
         <span class="ctrl-label">React</span>
       </div>
     </div>
-
     <div class="ctrl-divider"></div>
-
     <div class="ctrl-wrap ctrl-end-wrap">
       <button class="ctrl ctrl-end" onclick="endCall()" title="Leave">📵</button>
       <span class="ctrl-label" style="color:rgba(255,100,100,0.7)">Leave</span>
@@ -476,7 +561,6 @@ function decorateCallUI(t){
   const av = name ? name[0].toUpperCase() : '?';
   document.getElementById('remoteTileAvatar').textContent = av;
 
-  // incoming overlay
   const overlay = document.getElementById('incomingOverlay');
   if(isIncoming){
     document.getElementById('incomingName').textContent = name || 'Someone';
@@ -487,7 +571,6 @@ function decorateCallUI(t){
     startCallTimer();
   }
 
-  // participants panel
   const me = (typeof user !== 'undefined' && user) ? user.email : 'You';
   document.getElementById('participants').innerHTML = `
     <div class="part">
@@ -532,38 +615,21 @@ const messaging = firebase.messaging();
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/text/firebase-messaging-sw.js')
-    .then(reg => {
-      console.log('Service Worker registered');
-    })
-    .catch(err => {
-      console.error('Service Worker error:', err);
-    });
+    .then(reg => { console.log('Service Worker registered'); })
+    .catch(err => { console.error('Service Worker error:', err); });
 }
 
 async function setupNotifications() {
   try {
     const permission = await Notification.requestPermission();
-
-    if (permission !== "granted") {
-      console.log("Notification permission denied");
-      return;
-    }
-
-    const registration = await navigator.serviceWorker.register(
-      "/text/firebase-messaging-sw.js"
-    );
-
+    if (permission !== "granted") { console.log("Notification permission denied"); return; }
+    const registration = await navigator.serviceWorker.register("/text/firebase-messaging-sw.js");
     const token = await messaging.getToken({
-      vapidKey:
-        "BPJNZcIG3hM5zaSPt6NG2RrAFoLJ6SLz-44LIIKUC8thYc9SY_ycAJ21mvse36DTQgGGn3-TkxCcQj1bqDCoc9s",
+      vapidKey: "BPJNZcIG3hM5zaSPt6NG2RrAFoLJ6SLz-44LIIKUC8thYc9SY_ycAJ21mvse36DTQgGGn3-TkxCcQj1bqDCoc9s",
       serviceWorkerRegistration: registration
     });
-
     console.log("FCM Token:", token);
-
-    await db.ref("notificationTokens/" + myKey(user.email))
-      .set(token);
-
+    await db.ref("notificationTokens/" + myKey(user.email)).set(token);
   } catch (err) {
     console.error("Notification setup failed:", err);
   }
@@ -589,7 +655,6 @@ auth.onAuthStateChanged(u => {
     user = u;
     setupNotifications();
 
-    // Store this user's profile so others can resolve their display name
     const profileKey = myKey(u.email);
     db.ref('profiles/' + profileKey).set({
       displayName: u.displayName || u.email.split('@')[0],
@@ -603,6 +668,7 @@ auth.onAuthStateChanged(u => {
     document.getElementById('navAvatar').textContent = initials;
     loadChats();
     listenCalls();
+    listenEvents();
   } else {
     auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
   }
@@ -610,49 +676,40 @@ auth.onAuthStateChanged(u => {
 
 messaging.onMessage((payload) => {
   console.log("Foreground message:", payload);
-
-  const title =
-    payload.notification?.title ||
-    payload.data?.title ||
-    "TeamChat";
-
-  const body =
-    payload.notification?.body ||
-    payload.data?.body ||
-    "";
-
-  new Notification(title, {
-    body,
-    icon: "/android-chrome-192x192.png"
-  });
+  const title = payload.notification?.title || payload.data?.title || "TeamChat";
+  const body = payload.notification?.body || payload.data?.body || "";
+  new Notification(title, { body, icon: "/android-chrome-192x192.png" });
 });
 
-function myKey(e){ return e.replace(/\./g,'_'); }
+function myKey(email){
+  return email.toLowerCase().replace(/\./g,'_');
+}
 
 /* LOAD CHATS */
 function loadChats(){
-  db.ref('chats').on('child_added', s => {
-    const c = s.val();
-    const key = user.email.replace(/\./g,'_');
-    if(!c.members || !c.members[key]) return;
-
-    const d = document.createElement('div');
-    d.className = 'chatItem';
-    d.dataset.chatId = s.key;
-
-    const initial = c.name[0].toUpperCase();
-    d.innerHTML = `
-      <div class="ci-avatar group">${initial}</div>
-      <div class="ci-body">
-        <div class="ci-top">
-          <div class="ci-name" style="visibility:hidden"></div>
-          <div class="ci-time">Now</div>
+  const key = myKey(user.email);
+  db.ref('chats').on('value', snap => {
+    document.getElementById('chatList').innerHTML = '';
+    const chats = snap.val();
+    if(!chats) return;
+    Object.entries(chats).forEach(([id, c]) => {
+      if(!c.members || !c.members[key]) return;
+      const d = document.createElement('div');
+      d.className = 'chatItem';
+      d.dataset.chatId = id;
+      d.innerHTML = `
+        <div class="ci-avatar group">${(c.name||'?')[0].toUpperCase()}</div>
+        <div class="ci-body">
+          <div class="ci-top">
+            <div class="ci-name">${c.name || 'Chat'}</div>
+            <div class="ci-time">Now</div>
+          </div>
+          <div class="ci-preview">Click to open conversation</div>
         </div>
-        <div class="ci-preview">Click to open conversation</div>
-      </div>
-    `;
-    d.onclick = () => { openChat(s.key, c.name); setActiveChat(s.key); };
-    document.getElementById('chatList').appendChild(d);
+      `;
+      d.onclick = () => { openChat(id, c.name); setActiveChat(id); };
+      document.getElementById('chatList').appendChild(d);
+    });
   });
 }
 
@@ -665,10 +722,8 @@ function openChat(id, name){
   document.getElementById('inputArea').style.display = 'block';
   document.getElementById('chatHeader').style.display = 'flex';
   document.getElementById('callBtn').style.display = 'flex';
-
   document.getElementById('chat').innerHTML = '';
 
-  // 🧠 FIX: remove old listener before switching chats
   if (messagesRef && messageListener) {
     messagesRef.off('child_added', messageListener);
   }
@@ -687,11 +742,9 @@ function openChat(id, name){
 
   let lastDate = null;
 
-  // ⚡ ONE stable listener (no duplicates ever)
   messageListener = function(s) {
     const m = s.val();
     const chatEl = document.getElementById('chat');
-
     if (!chatEl) return;
 
     // SYSTEM MESSAGE
@@ -717,36 +770,79 @@ function openChat(id, name){
 
     const isMe = m.sender === user.email;
     const avatarColor = isMe ? 'background:var(--blue)' : 'background:#7c3aed';
-
-    // Resolve sender display name, then render the bubble
     const senderEmail = m.sender || '';
-    const namePromise = isMe
-      ? Promise.resolve('You')
-      : (typeof resolveDisplayName === 'function'
-          ? resolveDisplayName(senderEmail)
-          : Promise.resolve(senderEmail.split('@')[0]));
+
+    const namePromise = typeof resolveDisplayName === 'function'
+      ? resolveDisplayName(senderEmail)
+      : Promise.resolve(senderEmail.split('@')[0]);
 
     namePromise.then(senderName => {
       const initials = senderName[0].toUpperCase();
-      const row = document.createElement('div');
-      row.className = 'msgGroup' + (isMe ? ' me' : '');
-      row.innerHTML = `
-        <div class="mg-avatar" style="${avatarColor}">${initials}</div>
-        <div class="mg-body">
-          <div class="mg-header">
-            <span class="mg-sender">${senderName}</span>
-            <span class="mg-time">${m.time ? formatTime(m.time) : ''}</span>
-          </div>
-          <div class="bubble${isMe?' me':''}">${m.text || ''}</div>
-        </div>
-      `;
-      chatEl.appendChild(row);
+
+      // Find the last msgGroup by walking backwards through children
+      // (ignores date dividers and sys-msg elements)
+      let lastGroup = null;
+      for (let i = chatEl.children.length - 1; i >= 0; i--) {
+        if (chatEl.children[i].classList.contains('msgGroup')) {
+          lastGroup = chatEl.children[i];
+          break;
+        }
+      }
+
+      function renderBubbleContent(msg){
+        if(msg.type === 'image' && msg.imageUrl){
+          const img = document.createElement('img');
+          img.src = msg.imageUrl;
+          img.className = 'chat-image';
+          img.onclick = () => window.open(msg.imageUrl, '_blank');
+          return img;
+        }
+        if(msg.type === 'gif' && msg.imageUrl){
+          const img = document.createElement('img');
+          img.src = msg.imageUrl;
+          img.className = 'chat-image chat-gif';
+          return img;
+        }
+        const div = document.createElement('div');
+        div.innerHTML = renderMarkdown(msg.text || '');
+        return div;
+      }
+
+      if (lastGroup && lastGroup.dataset.sender === senderEmail && m.type !== 'image' && m.type !== 'gif') {
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble bubble-continuation' + (isMe ? ' me' : '');
+        bubble.appendChild(renderBubbleContent(m));
+        lastGroup.querySelector('.mg-body').appendChild(bubble);
+      } else {
+        const row = document.createElement('div');
+        row.className = 'msgGroup' + (isMe ? ' me' : '');
+        row.dataset.sender = senderEmail;
+        const bodyDiv = document.createElement('div');
+        bodyDiv.className = 'mg-body';
+        bodyDiv.innerHTML = `<div class="mg-header"><span class="mg-sender">${senderName}</span><span class="mg-time">${m.time ? formatTime(m.time) : ''}</span></div>`;
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble' + (isMe ? ' me' : '') + ((m.type === 'image' || m.type === 'gif') ? ' bubble-media' : '');
+        bubble.appendChild(renderBubbleContent(m));
+        bodyDiv.appendChild(bubble);
+        row.innerHTML = `<div class="mg-avatar" style="${avatarColor}">${initials}</div>`;
+        row.appendChild(bodyDiv);
+        chatEl.appendChild(row);
+      }
+
       chatEl.scrollTop = chatEl.scrollHeight;
     });
   };
 
-  // 🚀 attach ONCE only
   messagesRef.on('child_added', messageListener);
+}
+
+function renderMarkdown(text){
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/`(.+?)`/g,'<code>$1</code>')
+    .replace(/\n/g,'<br>');
 }
 
 function formatTime(ms){
@@ -761,10 +857,15 @@ function formatTime(ms){
 /* SEND */
 function send(){
   const msgEl = document.getElementById('msg');
-  if(!msgEl.value.trim()) return;
+  const text = msgEl.value.trim();
+
+  // Send pending image if any
+  if(pendingImageFile) uploadImageAndSend();
+
+  if(!text) return;
   db.ref('chats/'+chatId+'/messages').push({
     sender: user.email,
-    text: msgEl.value.trim(),
+    text: text,
     time: Date.now()
   });
   msgEl.value = '';
@@ -786,9 +887,7 @@ async function getMic(){
   stream = await navigator.mediaDevices.getUserMedia({audio:true, video:true})
     .catch(() => navigator.mediaDevices.getUserMedia({audio:true}));
   const selfEl = document.getElementById('selfVideoEl');
-  if(selfEl && stream.getVideoTracks().length > 0){
-    selfEl.srcObject = stream;
-  }
+  if(selfEl && stream.getVideoTracks().length > 0){ selfEl.srcObject = stream; }
 }
 
 /* START CALL */
@@ -826,9 +925,7 @@ function declineCall(){
 async function setup(isCaller){
   if(pc) pc.close();
   pc = new RTCPeerConnection({ iceServers:[{urls:'stun:stun.l.google.com:19302'}] });
-
   stream.getTracks().forEach(t => pc.addTrack(t, stream));
-
   pc.ontrack = e => {
     const remoteAudio = document.getElementById('remoteAudio');
     remoteAudio.srcObject = e.streams[0];
@@ -839,19 +936,13 @@ async function setup(isCaller){
       document.getElementById('remoteAvatarWrap').style.display = 'none';
     }
   };
-
   const ref = db.ref('calls/'+callId);
-
-  pc.onicecandidate = e => {
-    if(e.candidate) ref.child('c').push(JSON.stringify(e.candidate));
-  };
-
+  pc.onicecandidate = e => { if(e.candidate) ref.child('c').push(JSON.stringify(e.candidate)); };
   if(isCaller){
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
     ref.update({offer: JSON.stringify(offer)});
   }
-
   ref.on('value', async s => {
     const d = s.val();
     if(!d) return;
@@ -864,10 +955,7 @@ async function setup(isCaller){
     }
     if(d.answer && isCaller){ await pc.setRemoteDescription(JSON.parse(d.answer)); }
   });
-
-  ref.child('c').on('child_added', s => {
-    pc.addIceCandidate(JSON.parse(s.val()));
-  });
+  ref.child('c').on('child_added', s => { pc.addIceCandidate(JSON.parse(s.val())); });
 }
 
 /* RECEIVE CALLS */
@@ -884,13 +972,11 @@ function listenCalls(){
   });
 }
 
-/* SHOW CALL UI */
 function showUI(t){
   document.getElementById('callUI').style.display = 'flex';
   decorateCallUI(t);
 }
 
-/* END CALL */
 function endCall(){
   if(callId) db.ref('calls/'+callId).update({status:'ended'});
   stopCall();
@@ -904,7 +990,6 @@ function stopCall(){
   if(aw) aw.style.display = 'flex';
   const sv = document.getElementById('selfVideoEl');
   if(sv) sv.srcObject = null;
-
   if(pc){
     pc.ontrack = null; pc.onicecandidate = null;
     pc.getSenders().forEach(s => { if(s.track) s.track.stop(); });
@@ -913,11 +998,9 @@ function stopCall(){
   if(stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
   if(screenStream){ screenStream.getTracks().forEach(t => t.stop()); screenStream = null; }
   if(typeof recorder !== 'undefined' && recording){ recorder.stop(); recording = false; }
-
   document.getElementById('callUI').style.display = 'none';
   document.getElementById('incomingOverlay').style.display = 'none';
   cameraOn = true;
-
   const ring = document.getElementById('ringtone');
   if(ring){ ring.pause(); ring.currentTime = 0; }
 }
@@ -966,7 +1049,6 @@ function toggleRecord(){
 <script>
 /* ── ADDITIONAL UI WIRING ── */
 
-/* Toast */
 function showToast(msg, duration = 2500){
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -975,17 +1057,13 @@ function showToast(msg, duration = 2500){
   t._hideTimer = setTimeout(()=>{ t.style.display = 'none'; }, duration);
 }
 
-/* Nav view switching — works for both desktop nav rail and mobile bottom nav */
 function switchView(view){
   document.querySelectorAll('.nav-item, .mnav-item').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('[data-view="'+view+'"]').forEach(el => el.classList.add('active'));
-
   const isChat = view === 'chat';
   document.getElementById('sidebar').style.display = isChat ? 'flex' : 'none';
   document.getElementById('main').style.display = isChat ? 'flex' : 'none';
-  // On mobile, going back to chat view always shows the list first
   if (isChat) document.body.classList.remove('mobile-chat-open');
-
   document.querySelectorAll('.nav-view').forEach(el => el.classList.remove('active'));
   if(!isChat){
     const panel = document.getElementById('view-'+view);
@@ -993,18 +1071,17 @@ function switchView(view){
   }
 }
 
-/* Mobile: back arrow in the chat header returns to the chat list */
 function goBackToList(){
   document.body.classList.remove('mobile-chat-open');
 }
 
-/* Mobile: open conversation from the chat list */
 document.getElementById('chatList').addEventListener('click', e => {
   if(e.target.closest('.chatItem')){
     document.body.classList.add('mobile-chat-open');
     updatePinUI();
   }
 });
+
 function toggleProfilePopup(){
   const popup = document.getElementById('profilePopup');
   const open = popup.classList.toggle('open');
@@ -1020,7 +1097,6 @@ function closeProfilePopup(){
   document.getElementById('profilePopup').classList.remove('open');
 }
 
-/* Presence / status */
 let currentStatus = 'Available';
 const STATUS_COLORS = { Available: '#57a300', Away: '#d97706', Busy: '#dc2626', Offline: '#8a8a8a' };
 const STATUS_ORDER = ['Available', 'Away', 'Busy', 'Offline'];
@@ -1040,7 +1116,6 @@ function applyStatus(){
   showToast('Status set to ' + currentStatus);
 }
 
-/* Settings modal */
 function openSettings(){
   closeProfilePopup();
   if(typeof user !== 'undefined' && user) document.getElementById('settingsEmail').value = user.email;
@@ -1056,7 +1131,6 @@ function signOut(){
   auth.signOut();
 }
 
-/* New chat modal */
 function createChat(){
   document.getElementById('newChatName').value = '';
   document.getElementById('newChatMember').value = '';
@@ -1078,7 +1152,6 @@ function submitNewChat(){
   });
 }
 
-/* Sidebar search filter */
 function filterChats(){
   const q = document.getElementById('chatSearch').value.trim().toLowerCase();
   document.querySelectorAll('#chatList .chatItem').forEach(item => {
@@ -1088,7 +1161,6 @@ function filterChats(){
   });
 }
 
-/* Members panel */
 function toggleMembersPanel(){
   const panel = document.getElementById('membersPanel');
   const open = panel.classList.toggle('open');
@@ -1146,7 +1218,6 @@ function addMember(){
   });
 }
 
-/* Pin chats */
 let pinnedChats = new Set();
 
 function togglePin(){
@@ -1187,7 +1258,6 @@ function enhanceChatItem(item){
   if(pinnedChats.has(item.dataset.chatId)) item.classList.add('pinned');
 }
 
-/* Watch for new chat items being added to the sidebar so we can decorate them */
 const chatListObserver = new MutationObserver(mutations => {
   mutations.forEach(m => {
     m.addedNodes.forEach(node => {
@@ -1199,7 +1269,6 @@ const chatListObserver = new MutationObserver(mutations => {
 });
 chatListObserver.observe(document.getElementById('chatList'), { childList: true });
 
-/* Keep the Pin button in sync and open conversation on mobile */
 document.getElementById('chatList').addEventListener('click', e => {
   if(e.target.closest('.chatItem')){
     updatePinUI();
@@ -1207,7 +1276,6 @@ document.getElementById('chatList').addEventListener('click', e => {
   }
 });
 
-/* Load this user's pinned chats once auth is ready */
 function loadPinnedChats(){
   const userKey = myKey(user.email);
   db.ref('users/' + userKey + '/pinnedChats').on('value', snap => {
@@ -1227,7 +1295,6 @@ function loadPinnedChats(){
   }
 })();
 
-/* Composer toolbar: bold / italic — wraps the current selection in markdown markers */
 function wrapSelection(marker){
   const el = document.getElementById('msg');
   const start = el.selectionStart, end = el.selectionEnd;
@@ -1240,22 +1307,65 @@ function wrapSelection(marker){
   autoResize(el);
 }
 
-/* Composer toolbar: attach */
+let pendingImageFile = null;
+
 function handleFileAttach(e){
   const file = e.target.files[0];
   if(!file) return;
-  showToast('Attached "' + file.name + '" - file uploads are not connected yet');
   e.target.value = '';
+
+  if(file.type.startsWith('image/')){
+    pendingImageFile = file;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      document.getElementById('imagePreviewThumb').src = ev.target.result;
+      document.getElementById('imagePreviewName').textContent = file.name;
+      document.getElementById('imagePreviewBar').style.display = 'flex';
+    };
+    reader.readAsDataURL(file);
+  } else {
+    showToast('Only image uploads are supported right now.');
+  }
 }
 
-/* Composer toolbar: emoji */
+function clearImageAttach(){
+  pendingImageFile = null;
+  document.getElementById('imagePreviewBar').style.display = 'none';
+  document.getElementById('imagePreviewThumb').src = '';
+}
+
+async function uploadImageAndSend(){
+  if(!pendingImageFile || !chatId) return;
+  const file = pendingImageFile;
+  clearImageAttach();
+  showToast('Uploading image…');
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', 'yfkvefxb');
+    const res = await fetch('https://api.cloudinary.com/v1_1/df8v6dfqz/image/upload', {
+      method: 'POST',
+      body: formData
+    });
+    const data = await res.json();
+    if(!data.secure_url) throw new Error('No URL returned');
+    await db.ref('chats/' + chatId + '/messages').push({
+      sender: user.email,
+      type: 'image',
+      imageUrl: data.secure_url,
+      text: '',
+      time: Date.now()
+    });
+  } catch(err){
+    showToast('Upload failed: ' + err.message);
+    console.error(err);
+  }
+}
+
 const EMOJI_LIST = ['😀','😂','😍','👍','🙏','🎉','🔥','❤️','😢','😮','👏','🚀','✅','❓','💡','🤔','😎','🥳','👀','💯'];
 function toggleEmojiPicker(){
   const picker = document.getElementById('emojiPicker');
-  if(picker.classList.contains('open')){
-    picker.classList.remove('open');
-    return;
-  }
+  if(picker.classList.contains('open')){ picker.classList.remove('open'); return; }
   document.getElementById('membersPanel').classList.remove('open');
   picker.innerHTML = EMOJI_LIST.map(function(e){
     return '<span class="emoji-opt" onclick="insertEmoji(\'' + e + '\')">' + e + '</span>';
@@ -1270,7 +1380,6 @@ function insertEmoji(e){
   document.getElementById('emojiPicker').classList.remove('open');
 }
 
-/* Close floating panels when clicking outside them */
 document.addEventListener('click', e => {
   const popup = document.getElementById('profilePopup');
   const avatarWrap = document.querySelector('.nav-avatar-wrap');
@@ -1284,24 +1393,20 @@ document.addEventListener('click', e => {
   if(picker.classList.contains('open') && !picker.contains(e.target) && !e.target.closest('[title="Emoji"]')){
     picker.classList.remove('open');
   }
+  const gifPicker = document.getElementById('gifPicker');
+  if(gifPicker && gifPicker.classList.contains('open') && !gifPicker.contains(e.target) && !e.target.closest('[title="GIF"]')){
+    gifPicker.classList.remove('open');
+  }
 });
 </script>
 
 <script>
 /* ═══════════════════════════════════════════════════════
    FEATURE 1 — DM NAMING
-   For 1-on-1 chats, show the OTHER person's real name
-   (fetched from profiles/ in Firebase, written on login).
-   Group chats keep their stored name.
    ═══════════════════════════════════════════════════════ */
 
-/* Cache of email → display name so we don't re-fetch constantly */
 const displayNameCache = {};
 
-/**
- * Resolve a user's display name.
- * Returns a Promise<string> — the person's name, or their email prefix as fallback.
- */
 function resolveDisplayName(email) {
   if (displayNameCache[email]) return Promise.resolve(displayNameCache[email]);
   const key = email.replace(/\./g, '_');
@@ -1312,49 +1417,30 @@ function resolveDisplayName(email) {
   });
 }
 
-/**
- * Given chat data and current user's email, return:
- *  - for DMs  → a Promise<string> resolving to the other person's display name
- *  - for groups → a Promise<string> resolving to the stored chat name
- */
 function getChatLabel(chatData, myEmail) {
   const members = chatData.members
     ? Object.keys(chatData.members).map(k => k.replace(/_/g, '.'))
     : [];
   const others = members.filter(e => e !== myEmail);
-
   if (others.length !== 1 || chatData.isGroup) {
     return Promise.resolve(chatData.name || 'Chat');
   }
-
   return resolveDisplayName(others[0]);
 }
 
-/** Apply a resolved label to a sidebar chat item element */
 function applyChatItemLabel(itemEl, label) {
   const nameEl = itemEl.querySelector('.ci-name');
-
   if (nameEl) {
     const badge = nameEl.querySelector('.ci-pin-badge');
-
     nameEl.textContent = label;
     nameEl.style.visibility = 'visible';
-
-    if (badge) {
-      nameEl.insertBefore(badge, nameEl.firstChild);
-    }
+    if (badge) nameEl.insertBefore(badge, nameEl.firstChild);
   }
-
   const avatarEl = itemEl.querySelector('.ci-avatar');
-
   if (avatarEl) {
     const dot = avatarEl.querySelector('.ci-live-dot');
-
     avatarEl.textContent = label[0].toUpperCase();
-
-    if (dot) {
-      avatarEl.appendChild(dot);
-    }
+    if (dot) avatarEl.appendChild(dot);
   }
 }
 
@@ -1364,19 +1450,14 @@ function applyChatItemLabel(itemEl, label) {
       setTimeout(tryPatch, 150);
       return;
     }
-
-    // Listen for chats and update sidebar labels with real names
     db.ref('chats').on('child_added', snap => {
       const c = snap.val();
       const key = user.email.replace(/\./g, '_');
       if (!c.members || !c.members[key]) return;
-
       const members = c.members ? Object.keys(c.members).map(k => k.replace(/_/g, '.')) : [];
       const others = members.filter(e => e !== user.email);
       const isDM = others.length === 1 && !c.isGroup;
-
       getChatLabel(c, user.email).then(label => {
-        // Find the sidebar item (may already exist from original loadChats)
         const existing = [...document.querySelectorAll('.chatItem')]
           .find(el => el.dataset.chatId === snap.key);
         if (existing) {
@@ -1386,19 +1467,15 @@ function applyChatItemLabel(itemEl, label) {
       });
     });
 
-    // Intercept openChat to show real name in the header
     const _origOpenChat = openChat;
     window.openChat = function(id, name) {
       _origOpenChat(id, name);
-
       db.ref('chats/' + id).once('value').then(snap => {
         const c = snap.val();
         if (!c) return;
-
         const members = c.members ? Object.keys(c.members).map(k => k.replace(/_/g, '.')) : [];
         const others = members.filter(e => e !== user.email);
         const isDM = others.length === 1 && !c.isGroup;
-
         getChatLabel(c, user.email).then(label => {
           document.getElementById('chatHeaderName').textContent = label;
           document.getElementById('chatHeaderIcon').textContent = label[0].toUpperCase();
@@ -1407,11 +1484,9 @@ function applyChatItemLabel(itemEl, label) {
       });
     };
   }
-
   tryPatch();
 })();
 
-/* Watch another user's presence and update the chat header subtitle */
 let headerPresenceRef = null;
 function watchHeaderPresence(email) {
   if (headerPresenceRef) headerPresenceRef.off();
@@ -1433,88 +1508,65 @@ function watchHeaderPresence(email) {
   });
 }
 
-/* Attach a small live-status dot to a sidebar chat item (DMs only) */
 const presenceDotWatchers = {};
 
 function attachPresenceDot(itemEl, email) {
   const avatarEl = itemEl.querySelector('.ci-avatar');
   if (!avatarEl) return;
-
   const old = avatarEl.querySelector('.ci-live-dot');
   if (old) old.remove();
-
   const dot = document.createElement('div');
   dot.className = 'ci-live-dot';
   avatarEl.appendChild(dot);
-
   const key = email.replace(/\./g, '_');
   const ref = db.ref('presence/' + key);
-
   if (presenceDotWatchers[email]) presenceDotWatchers[email]();
-
   const handler = ref.on('value', snap => {
     const p = snap.val();
     const status = (p && p.status) ? p.status : 'Offline';
     dot.style.background = STATUS_COLORS[status] || '#8a8a8a';
     dot.title = status;
   });
-
   presenceDotWatchers[email] = () => ref.off('value', handler);
 }
 
-
 /* ═══════════════════════════════════════════════════════
    FEATURE 2 — LIVE PRESENCE TRACKING
-   Writes this user's status to Firebase in real-time.
-   Rules:
-     Available  — tab visible + activity in last 5 min
-     Away       — tab visible but idle 5–15 min
-     Busy       — tab visible but idle 15+ min (or in a call)
-     Offline    — tab hidden / window blurred + idle > 1 min
-   Also subscribes to other users' presence nodes and
-   renders live status dots throughout the UI.
    ═══════════════════════════════════════════════════════ */
 
-const PRESENCE_HEARTBEAT_MS  = 20_000;  // write to Firebase every 20 s
-const IDLE_AWAY_MS           = 5 * 60_000;  // 5 min → Away
-const IDLE_BUSY_MS           = 15 * 60_000; // 15 min → Busy (repurposed as "deep focus")
-const OFFLINE_BLUR_MS        = 60_000;      // 1 min after tab hides → Offline
+const PRESENCE_HEARTBEAT_MS = 20_000;
+const IDLE_AWAY_MS          = 5 * 60_000;
+const IDLE_BUSY_MS          = 15 * 60_000;
+const OFFLINE_BLUR_MS       = 60_000;
 
 let lastActivityTime = Date.now();
 let presenceInterval = null;
 let offlineTimer = null;
-let presenceRef = null;  // db ref for this user
+let presenceRef = null;
 
-/* Record any mouse/keyboard activity */
 ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'].forEach(evt => {
   window.addEventListener(evt, () => { lastActivityTime = Date.now(); }, { passive: true });
 });
 
-/** Compute the status the current user SHOULD have right now */
 function computeMyStatus() {
   const idleMs = Date.now() - lastActivityTime;
   const hidden  = document.hidden;
-
   if (hidden && idleMs > OFFLINE_BLUR_MS) return 'Offline';
   if (idleMs > IDLE_BUSY_MS)  return 'Busy';
   if (idleMs > IDLE_AWAY_MS)  return 'Away';
   return 'Available';
 }
 
-/** Push our status + timestamp to Firebase */
 function pushMyPresence(statusOverride) {
   if (!presenceRef) return;
   const status = statusOverride || computeMyStatus();
   presenceRef.set({ status, lastSeen: Date.now() });
-
-  // Keep local UI in sync only if user hasn't manually overridden
   if (!manualStatusOverride) {
     currentStatus = status;
     applyStatusSilent(status);
   }
 }
 
-/** Like applyStatus() but doesn't show a toast (for automatic changes) */
 function applyStatusSilent(status) {
   const color = STATUS_COLORS[status] || '#8a8a8a';
   document.querySelectorAll('.nav-presence, .pp-dot').forEach(el => el.style.background = color);
@@ -1524,32 +1576,26 @@ function applyStatusSilent(status) {
   if (ss) ss.value = status;
 }
 
-/** True when the user has manually cycled their status (suppress auto changes) */
 let manualStatusOverride = false;
 let manualOverrideTimer = null;
 
-/* Patch cycleStatus to flag manual override for 30 min */
 const _origCycleStatus = cycleStatus;
 window.cycleStatus = function() {
   manualStatusOverride = true;
   clearTimeout(manualOverrideTimer);
   manualOverrideTimer = setTimeout(() => { manualStatusOverride = false; }, 30 * 60_000);
   _origCycleStatus();
-  // Also write the manually chosen status to Firebase
   if (presenceRef) presenceRef.set({ status: currentStatus, lastSeen: Date.now() });
 };
 
-/* Patch applyStatus so manual changes also persist to Firebase */
 const _origApplyStatus = applyStatus;
 window.applyStatus = function() {
   _origApplyStatus();
   if (presenceRef) presenceRef.set({ status: currentStatus, lastSeen: Date.now() });
 };
 
-/* Tab visibility changes */
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
-    // Start a timer: if still hidden after OFFLINE_BLUR_MS, go Offline
     offlineTimer = setTimeout(() => pushMyPresence('Offline'), OFFLINE_BLUR_MS);
   } else {
     clearTimeout(offlineTimer);
@@ -1558,28 +1604,17 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-/** Initialise presence for the signed-in user.
- *  Called once auth fires (we poll for `user`). */
 function initPresence() {
   const key = user.email.replace(/\./g, '_');
   presenceRef = db.ref('presence/' + key);
-
-  // Write immediately
   pushMyPresence('Available');
-
-  // Heartbeat
   presenceInterval = setInterval(pushMyPresence, PRESENCE_HEARTBEAT_MS);
-
-  // Mark Offline on tab close / refresh using Firebase onDisconnect
   presenceRef.onDisconnect().set({ status: 'Offline', lastSeen: Date.now() });
-
-  // Subscribe to ALL users' presence so we can update sidebar dots
   db.ref('presence').on('child_changed', snap => {
     const email = snap.key.replace(/_/g, '.');
     const p = snap.val();
     updatePresenceDots(email, p ? p.status : 'Offline');
   });
-
   db.ref('presence').on('child_added', snap => {
     const email = snap.key.replace(/_/g, '.');
     const p = snap.val();
@@ -1587,28 +1622,20 @@ function initPresence() {
   });
 }
 
-/** Update every rendered dot for a given email */
 function updatePresenceDots(email, status) {
   const color = STATUS_COLORS[status] || '#8a8a8a';
-
-  // Sidebar live dots on DM items
   document.querySelectorAll('.ci-live-dot[data-email="' + email + '"]').forEach(dot => {
     dot.style.background = color;
   });
-
-  // Member panel rows
   document.querySelectorAll('.member-av-dot[data-email="' + email + '"]').forEach(dot => {
     dot.style.background = color;
   });
-
-  // Chat header if this is the open DM partner
   const headerSub = document.getElementById('chatHeaderMembers');
   if (headerSub && headerSub.dataset.presenceEmail === email) {
-    watchHeaderPresence(email); // re-run to refresh
+    watchHeaderPresence(email);
   }
 }
 
-/* Boot presence once user is ready */
 (function waitForPresence() {
   if (typeof user !== 'undefined' && user && typeof db !== 'undefined') {
     initPresence();
@@ -1617,7 +1644,541 @@ function updatePresenceDots(email, status) {
   }
 })();
 
-/* Also patch loadMembersPanel so member rows show live status dots and real names */
+/* ══════════════════════════════════════
+   GIF PICKER  (Giphy public beta key)
+   ══════════════════════════════════════ */
+const GIPHY_KEY = 'sXpGFDGZs0Dv1mmNFvYaGUvYwKX0PWIh';
+let gifDebounce = null;
+
+function toggleGifPicker(){
+  const picker = document.getElementById('gifPicker');
+  const isOpen = picker.classList.contains('open');
+  document.getElementById('emojiPicker').classList.remove('open');
+  if(isOpen){ picker.classList.remove('open'); return; }
+  picker.classList.add('open');
+  if(!document.getElementById('gifResults').children.length) loadTrendingGifs();
+}
+
+async function loadTrendingGifs(){
+  const res = await fetch(`https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_KEY}&limit=24&rating=g`);
+  const data = await res.json();
+  renderGifs(data.data);
+}
+
+async function searchGifs(q){
+  clearTimeout(gifDebounce);
+  if(!q){ loadTrendingGifs(); return; }
+  gifDebounce = setTimeout(async ()=>{
+    const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(q)}&limit=24&rating=g`);
+    const data = await res.json();
+    renderGifs(data.data);
+  }, 400);
+}
+
+function renderGifs(gifs){
+  const el = document.getElementById('gifResults');
+  el.innerHTML = '';
+  gifs.forEach(g => {
+    const img = document.createElement('img');
+    img.src = g.images.fixed_height_small.url;
+    img.className = 'gif-thumb';
+    img.onclick = () => sendGif(g.images.original.url);
+    el.appendChild(img);
+  });
+}
+
+function sendGif(url){
+  if(!chatId) return;
+  document.getElementById('gifPicker').classList.remove('open');
+  db.ref('chats/'+chatId+'/messages').push({
+    sender: user.email,
+    type: 'gif',
+    imageUrl: url,
+    text: '',
+    time: Date.now()
+  });
+}
+
+/* ══════════════════════════════════════
+   CALENDAR
+   ══════════════════════════════════════ */
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function initCalendar(){
+  renderCalendar();
+  listenEvents();
+}
+
+function calPrev(){ calMonth--; if(calMonth<0){calMonth=11;calYear--;} renderCalendar(); }
+function calNext(){ calMonth++; if(calMonth>11){calMonth=0;calYear++;} renderCalendar(); }
+
+let allEvents = [];
+
+function listenEvents(){
+  if(!user) return;
+  db.ref('events/' + myKey(user.email)).on('value', snap => {
+    allEvents = [];
+    const val = snap.val();
+    if(val) Object.entries(val).forEach(([k,v]) => allEvents.push({...v, id:k}));
+    renderCalendar();
+    renderUpcoming();
+  });
+}
+
+function renderCalendar(){
+  const label = document.getElementById('calMonthLabel');
+  const grid  = document.getElementById('calGrid');
+  if(!label || !grid) return;
+  label.textContent = MONTH_NAMES[calMonth] + ' ' + calYear;
+  grid.innerHTML = '';
+
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysIn   = new Date(calYear, calMonth+1, 0).getDate();
+  const today    = new Date();
+
+  for(let i=0;i<firstDay;i++){
+    const blank = document.createElement('div');
+    blank.className = 'cal-cell cal-blank';
+    grid.appendChild(blank);
+  }
+  for(let d=1;d<=daysIn;d++){
+    const cell = document.createElement('div');
+    cell.className = 'cal-cell';
+    const isToday = d===today.getDate() && calMonth===today.getMonth() && calYear===today.getFullYear();
+    if(isToday) cell.classList.add('cal-today');
+    const dateStr = calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const dayEvents = allEvents.filter(e=>e.date===dateStr);
+    cell.innerHTML = `<div class="cal-day-num">${d}</div>`;
+    dayEvents.forEach(ev=>{
+      const dot = document.createElement('div');
+      dot.className = 'cal-event-dot';
+      dot.title = ev.title;
+      cell.appendChild(dot);
+    });
+    cell.onclick = () => openDayEvents(dateStr, d);
+    grid.appendChild(cell);
+  }
+}
+
+function renderUpcoming(){
+  const el = document.getElementById('calUpcoming');
+  if(!el) return;
+  const now = new Date();
+  const upcoming = allEvents
+    .filter(e => new Date(e.date + 'T' + (e.time||'00:00')) >= now)
+    .sort((a,b) => (a.date+a.time) > (b.date+b.time) ? 1 : -1)
+    .slice(0,5);
+  if(!upcoming.length){ el.innerHTML = '<div class="cal-no-events">No upcoming events</div>'; return; }
+  el.innerHTML = '<div class="cal-upcoming-title">Upcoming</div>' +
+    upcoming.map(ev=>`
+      <div class="cal-event-row" onclick="deleteEvent('${ev.id}')">
+        <div class="cal-event-color"></div>
+        <div class="cal-event-info">
+          <div class="cal-event-name">${ev.title}</div>
+          <div class="cal-event-time">${ev.date} ${ev.time||''}</div>
+        </div>
+        <div class="cal-event-del" title="Delete">🗑️</div>
+      </div>`).join('');
+}
+
+function openDayEvents(dateStr, d){
+  const dayEvents = allEvents.filter(e=>e.date===dateStr);
+  if(!dayEvents.length){
+    openNewEventModal(dateStr);
+  } else {
+    openNewEventModal(dateStr);
+  }
+}
+
+function deleteEvent(id){
+  if(!confirm('Delete this event?')) return;
+  db.ref('events/' + myKey(user.email) + '/' + id).remove();
+}
+
+function openNewEventModal(prefillDate){
+  const today = prefillDate || new Date().toISOString().slice(0,10);
+  document.getElementById('eventDate').value = today;
+  document.getElementById('eventTitle').value = '';
+  document.getElementById('eventTime').value = '';
+  document.getElementById('eventDesc').value = '';
+  document.getElementById('newEventOverlay').style.display = 'flex';
+}
+function closeNewEventModal(){
+  document.getElementById('newEventOverlay').style.display = 'none';
+}
+function submitNewEvent(){
+  const title = document.getElementById('eventTitle').value.trim();
+  const date  = document.getElementById('eventDate').value;
+  const time  = document.getElementById('eventTime').value;
+  const desc  = document.getElementById('eventDesc').value.trim();
+  if(!title || !date){ showToast('Please enter a title and date'); return; }
+  db.ref('events/' + myKey(user.email)).push({ title, date, time, desc, createdAt: Date.now() });
+  closeNewEventModal();
+  showToast('Event created!');
+}
+
+/* Boot calendar when switching to it */
+const _origSwitchView = switchView;
+window.switchView = function(view){
+  _origSwitchView(view);
+  if(view === 'calendar') initCalendar();
+};
+
+/* ══════════════════════════════════════
+   TEAMS
+   ══════════════════════════════════════ */
+let activeTeamId = null;
+let activeChannelId = null;
+let teamChannelRef = null;
+let teamMsgRef = null;
+let teamMsgListener = null;
+
+function openNewTeamModal(){
+  document.getElementById('newTeamName').value = '';
+  document.getElementById('newTeamDesc').value = '';
+  document.getElementById('newTeamOverlay').style.display = 'flex';
+}
+function closeNewTeamModal(){ document.getElementById('newTeamOverlay').style.display = 'none'; }
+
+function submitNewTeam(){
+  const name = document.getElementById('newTeamName').value.trim();
+  const desc = document.getElementById('newTeamDesc').value.trim();
+  if(!name){ showToast('Please enter a team name'); return; }
+  const teamRef = db.ref('teams').push();
+  const key = myKey(user.email);
+  teamRef.set({
+    name, desc,
+    createdBy: user.email,
+    members: { [key]: { role: 'owner' } },
+    createdAt: Date.now()
+  }).then(() => {
+    // Create default General channel
+    db.ref('teams/' + teamRef.key + '/channels').push({ name: 'general', createdAt: Date.now() });
+    closeNewTeamModal();
+    showToast('Team created!');
+    loadTeams();
+  });
+}
+
+function loadTeams(){
+  if(!user) return;
+  const key = myKey(user.email);
+  db.ref('teams').on('value', snap => {
+    const sidebar = document.getElementById('teamsSidebar');
+    const empty = document.getElementById('teamsEmpty');
+    if(!sidebar) return;
+    // Clear old team items but keep the empty div
+    [...sidebar.querySelectorAll('.team-item')].forEach(el => el.remove());
+    const teams = snap.val();
+    if(!teams || !Object.values(teams).some(t => t.members && t.members[key])){
+      if(empty) empty.style.display = 'flex';
+      return;
+    }
+    if(empty) empty.style.display = 'none';
+    Object.entries(teams).forEach(([tid, team]) => {
+      if(!team.members || !team.members[key]) return;
+      const item = document.createElement('div');
+      item.className = 'team-item';
+      item.dataset.teamId = tid;
+      item.innerHTML = `
+        <div class="team-item-header" onclick="toggleTeamExpand('${tid}')">
+          <div class="team-avatar">${team.name[0].toUpperCase()}</div>
+          <div class="team-name">${team.name}</div>
+          <div class="team-chevron" id="chevron-${tid}">▾</div>
+        </div>
+        <div class="team-channels" id="channels-${tid}"></div>
+        <div class="team-add-channel" onclick="openNewChannelModal('${tid}')">+ Add channel</div>
+      `;
+      sidebar.appendChild(item);
+      loadChannels(tid);
+    });
+  });
+}
+
+function toggleTeamExpand(tid){
+  const ch = document.getElementById('channels-' + tid);
+  const chev = document.getElementById('chevron-' + tid);
+  const isOpen = ch.classList.toggle('open');
+  chev.textContent = isOpen ? '▾' : '▸';
+}
+
+function loadChannels(tid){
+  db.ref('teams/' + tid + '/channels').on('value', snap => {
+    const el = document.getElementById('channels-' + tid);
+    if(!el) return;
+    el.innerHTML = '';
+    const channels = snap.val();
+    if(!channels) return;
+    Object.entries(channels).forEach(([cid, ch]) => {
+      const row = document.createElement('div');
+      row.className = 'channel-row';
+      row.dataset.channelId = cid;
+      row.innerHTML = `<span class="channel-hash">#</span> ${ch.name}`;
+      row.onclick = () => openChannel(tid, cid, ch.name);
+      el.appendChild(row);
+    });
+    el.classList.add('open');
+    document.getElementById('chevron-' + tid).textContent = '▾';
+  });
+}
+
+function openNewChannelModal(tid){
+  document.getElementById('newChannelName').value = '';
+  document.getElementById('newChannelOverlay').dataset.teamId = tid;
+  document.getElementById('newChannelOverlay').style.display = 'flex';
+}
+function closeNewChannelModal(){ document.getElementById('newChannelOverlay').style.display = 'none'; }
+
+function submitNewChannel(){
+  const name = document.getElementById('newChannelName').value.trim().toLowerCase().replace(/\s+/g,'-');
+  const tid = document.getElementById('newChannelOverlay').dataset.teamId;
+  if(!name || !tid){ showToast('Enter a channel name'); return; }
+  db.ref('teams/' + tid + '/channels').push({ name, createdAt: Date.now() });
+  closeNewChannelModal();
+}
+
+let teamLastDate = null;
+let teamMsgListenerAttached = false;
+
+function openChannel(tid, cid, chName){
+  activeTeamId = tid; activeChannelId = cid;
+
+  // Mark active
+  document.querySelectorAll('.channel-row').forEach(r => r.classList.remove('active'));
+  const row = document.querySelector(`.channel-row[data-channel-id="${cid}"]`);
+  if(row) row.classList.add('active');
+
+  // Build channel main area
+  const main = document.getElementById('teamsMain');
+  main.innerHTML = `
+    <div class="team-chan-header">
+      <span class="channel-hash" style="font-size:18px">#</span>
+      <span class="team-chan-name">${chName}</span>
+    </div>
+    <div class="team-messages" id="teamMessages"></div>
+    <div class="team-composer">
+      <textarea class="team-msg-input" id="teamMsgInput" placeholder="Message #${chName}" rows="1"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendTeamMsg()}"
+        oninput="autoResize(this)"></textarea>
+      <button class="team-send-btn" onclick="sendTeamMsg()">➤</button>
+    </div>
+  `;
+
+  // Detach old listener
+  if(teamMsgRef && teamMsgListener) teamMsgRef.off('child_added', teamMsgListener);
+  teamLastDate = null;
+
+  teamMsgRef = db.ref('teams/' + tid + '/channels/' + cid + '/messages');
+  teamMsgListener = function(s){
+    const m = s.val();
+    const el = document.getElementById('teamMessages');
+    if(!el) return;
+    if(m.sender === 'system'){
+      const row = document.createElement('div');
+      row.className = 'sys-msg';
+      row.innerHTML = `<div class="sys-msg-line"></div><span>${m.text}</span><div class="sys-msg-line"></div>`;
+      el.appendChild(row); el.scrollTop = el.scrollHeight; return;
+    }
+    const msgDate = m.time ? new Date(m.time).toDateString() : null;
+    if(msgDate && msgDate !== teamLastDate){
+      teamLastDate = msgDate;
+      const div = document.createElement('div');
+      div.className = 'date-divider';
+      div.innerHTML = `<span>${msgDate === new Date().toDateString() ? 'Today' : msgDate}</span>`;
+      el.appendChild(div);
+    }
+    const isMe = m.sender === user.email;
+    const senderEmail = m.sender || '';
+    const namePromise = typeof resolveDisplayName === 'function'
+      ? resolveDisplayName(senderEmail) : Promise.resolve(senderEmail.split('@')[0]);
+    namePromise.then(senderName => {
+      let lastGroup = null;
+      for(let i = el.children.length-1; i>=0; i--){
+        if(el.children[i].classList.contains('msgGroup')){ lastGroup = el.children[i]; break; }
+      }
+      const avatarColor = isMe ? 'background:var(--blue)' : 'background:#7c3aed';
+      if(lastGroup && lastGroup.dataset.sender === senderEmail){
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble bubble-continuation' + (isMe ? ' me' : '');
+        bubble.innerHTML = renderMarkdown(m.text || '');
+        lastGroup.querySelector('.mg-body').appendChild(bubble);
+      } else {
+        const row = document.createElement('div');
+        row.className = 'msgGroup' + (isMe ? ' me' : '');
+        row.dataset.sender = senderEmail;
+        const bodyDiv = document.createElement('div');
+        bodyDiv.className = 'mg-body';
+        bodyDiv.innerHTML = `<div class="mg-header"><span class="mg-sender">${senderName}</span><span class="mg-time">${m.time ? formatTime(m.time) : ''}</span></div>`;
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble' + (isMe ? ' me' : '');
+        bubble.innerHTML = renderMarkdown(m.text || '');
+        bodyDiv.appendChild(bubble);
+        row.innerHTML = `<div class="mg-avatar" style="${avatarColor}">${senderName[0].toUpperCase()}</div>`;
+        row.appendChild(bodyDiv);
+        el.appendChild(row);
+      }
+      el.scrollTop = el.scrollHeight;
+    });
+  };
+  teamMsgRef.on('child_added', teamMsgListener);
+}
+
+function sendTeamMsg(){
+  const el = document.getElementById('teamMsgInput');
+  if(!el || !el.value.trim()) return;
+  db.ref('teams/' + activeTeamId + '/channels/' + activeChannelId + '/messages').push({
+    sender: user.email,
+    text: el.value.trim(),
+    time: Date.now()
+  });
+  el.value = ''; el.style.height = 'auto';
+}
+
+/* ══════════════════════════════════════
+   FILES VIEW
+   ══════════════════════════════════════ */
+let filesFilter = 'all';
+let allFiles = [];
+
+function loadFiles(){
+  const grid = document.getElementById('filesGrid');
+  if(!grid) return;
+  grid.innerHTML = '<div class="files-loading">Loading…</div>';
+  allFiles = [];
+
+  db.ref('chats').once('value').then(snap => {
+    const chats = snap.val();
+    if(!chats){ grid.innerHTML = '<div class="files-loading">No files yet.</div>'; return; }
+    const key = myKey(user.email);
+    const promises = [];
+    Object.entries(chats).forEach(([cid, chat]) => {
+      if(!chat.members || !chat.members[key]) return;
+      promises.push(
+        db.ref('chats/' + cid + '/messages').once('value').then(msgSnap => {
+          const msgs = msgSnap.val();
+          if(!msgs) return;
+          Object.values(msgs).forEach(m => {
+            if((m.type === 'image' || m.type === 'gif') && m.imageUrl){
+              allFiles.push({ ...m, chatName: chat.name });
+            }
+          });
+        })
+      );
+    });
+    Promise.all(promises).then(() => renderFiles());
+  });
+}
+
+function setFilesFilter(filter, btn){
+  filesFilter = filter;
+  document.querySelectorAll('.files-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderFiles();
+}
+
+function renderFiles(){
+  const grid = document.getElementById('filesGrid');
+  if(!grid) return;
+  const filtered = filesFilter === 'all' ? allFiles : allFiles.filter(f => f.type === filesFilter);
+  if(!filtered.length){
+    grid.innerHTML = '<div class="files-loading">No files here yet.</div>'; return;
+  }
+  grid.innerHTML = '';
+  filtered.forEach(f => {
+    const item = document.createElement('div');
+    item.className = 'files-item';
+    item.innerHTML = `
+      <img src="${f.imageUrl}" alt="${f.type}" loading="lazy" onclick="window.open('${f.imageUrl}','_blank')">
+      <div class="files-item-meta">
+        <div class="files-item-chat">${f.chatName || 'Chat'}</div>
+        <div class="files-item-time">${f.time ? formatTime(f.time) : ''}</div>
+      </div>`;
+    grid.appendChild(item);
+  });
+}
+
+/* ══════════════════════════════════════
+   APPS
+   ══════════════════════════════════════ */
+const ALL_APPS = [
+  { id:'polls',    name:'Polls',       icon:'📊', desc:'Create quick polls in any chat',         category:'productivity' },
+  { id:'tasks',    name:'Tasks',       icon:'✅', desc:'Assign and track tasks across chats',    category:'productivity' },
+  { id:'notes',    name:'Notes',       icon:'📝', desc:'Shared team notes and wikis',            category:'productivity' },
+  { id:'github',   name:'GitHub',      icon:'🐙', desc:'Get PR and commit notifications',        category:'dev' },
+  { id:'jira',     name:'Jira',        icon:'🔵', desc:'Link issues and track sprints',          category:'dev' },
+  { id:'figma',    name:'Figma',       icon:'🎨', desc:'Share and preview design files',         category:'design' },
+  { id:'zoom',     name:'Zoom',        icon:'📹', desc:'Start Zoom meetings from chats',         category:'meetings' },
+  { id:'calendar', name:'Google Cal',  icon:'📅', desc:'Sync events with Google Calendar',       category:'meetings' },
+  { id:'drive',    name:'Google Drive',icon:'📂', desc:'Browse and share Drive files in chat',   category:'files' },
+  { id:'notion',   name:'Notion',      icon:'🗒️', desc:'Embed Notion pages in channels',         category:'productivity' },
+  { id:'slack',    name:'Slack Bridge',icon:'💬', desc:'Mirror messages to a Slack channel',     category:'comms' },
+  { id:'weather',  name:'Weather Bot', icon:'🌤️', desc:'Get daily weather updates in chat',      category:'bots' },
+];
+
+let installedApps = new Set();
+
+function loadApps(){
+  const key = myKey(user.email);
+  db.ref('users/' + key + '/installedApps').on('value', snap => {
+    installedApps = new Set(snap.val() ? Object.keys(snap.val()) : []);
+    renderApps('');
+  });
+}
+
+function filterApps(q){
+  renderApps(q.toLowerCase());
+}
+
+function renderApps(q){
+  const installed = document.getElementById('appsInstalled');
+  const browse = document.getElementById('appsBrowse');
+  if(!installed || !browse) return;
+
+  const filtered = q ? ALL_APPS.filter(a => a.name.toLowerCase().includes(q) || a.desc.toLowerCase().includes(q)) : ALL_APPS;
+  const installedList = filtered.filter(a => installedApps.has(a.id));
+  const browseList    = filtered.filter(a => !installedApps.has(a.id));
+
+  installed.innerHTML = installedList.length
+    ? installedList.map(a => appCard(a, true)).join('')
+    : '<div class="apps-empty">No installed apps yet.</div>';
+
+  browse.innerHTML = browseList.length
+    ? browseList.map(a => appCard(a, false)).join('')
+    : '<div class="apps-empty">No results.</div>';
+}
+
+function appCard(a, isInstalled){
+  return `<div class="app-card">
+    <div class="app-icon">${a.icon}</div>
+    <div class="app-info">
+      <div class="app-name">${a.name}</div>
+      <div class="app-desc">${a.desc}</div>
+    </div>
+    <button class="app-btn ${isInstalled ? 'app-btn-remove' : 'app-btn-add'}"
+      onclick="toggleApp('${a.id}',${isInstalled})">
+      ${isInstalled ? 'Remove' : 'Add'}
+    </button>
+  </div>`;
+}
+
+function toggleApp(id, isInstalled){
+  const key = myKey(user.email);
+  const ref = db.ref('users/' + key + '/installedApps/' + id);
+  if(isInstalled){ ref.remove(); showToast('App removed'); }
+  else { ref.set(true); showToast('App added!'); }
+}
+
+/* Patch switchView to load data on first visit */
+const _origSwitchView2 = window.switchView;
+window.switchView = function(view){
+  _origSwitchView2(view);
+  if(view === 'teams')    loadTeams();
+  if(view === 'files')    loadFiles();
+  if(view === 'apps')     loadApps();
+};
+
 const _origLoadMembersPanel = loadMembersPanel;
 window.loadMembersPanel = function() {
   if (!chatId) return;
@@ -1626,11 +2187,9 @@ window.loadMembersPanel = function() {
     const list = document.getElementById('membersList');
     list.innerHTML = '';
     if (!c || !c.members) return;
-
     Object.keys(c.members).forEach(k => {
       const email = k.replace(/_/g, '.');
       const isMe = email === user.email;
-
       resolveDisplayName(email).then(name => {
         const initials = name[0].toUpperCase();
         const row = document.createElement('div');
@@ -1644,8 +2203,6 @@ window.loadMembersPanel = function() {
             '<div class="member-role">Member</div>' +
           '</div>';
         list.appendChild(row);
-
-        // Wire live presence dot
         const dot = row.querySelector('.member-av-dot');
         db.ref('presence/' + k).on('value', ps => {
           const p = ps.val();
@@ -1657,10 +2214,284 @@ window.loadMembersPanel = function() {
     });
   });
 };
-
 </script>
 
 <style>
+/* ── CHAT IMAGES & GIFS ── */
+.chat-image {
+  max-width: 280px; max-height: 220px;
+  border-radius: 8px; display: block;
+  cursor: pointer; object-fit: cover;
+  margin: 0;
+}
+.chat-gif { cursor: default; }
+.bubble-media {
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+.bubble-media.me { background: transparent !important; }
+
+/* ── IMAGE PREVIEW BAR ── */
+#imagePreviewBar {
+  display: none;
+  align-items: center;
+  padding: 6px 14px;
+  background: var(--blue-xlight);
+  border-top: 1px solid var(--blue-light);
+  gap: 10px;
+}
+.img-preview-inner { display:flex; align-items:center; gap:8px; }
+#imagePreviewThumb { width:40px; height:40px; object-fit:cover; border-radius:6px; }
+.img-preview-remove {
+  width:22px; height:22px; border-radius:50%;
+  border:none; background:rgba(0,0,0,0.15);
+  color:var(--text-secondary); cursor:pointer; font-size:12px;
+  display:flex; align-items:center; justify-content:center;
+}
+.img-preview-name { font-size:12px; color:var(--text-secondary); }
+
+/* ── GIF PICKER ── */
+#gifPicker {
+  position:absolute; bottom:72px; left:20px;
+  width:320px; max-height:320px;
+  background:white; border:1px solid var(--border);
+  border-radius:10px; box-shadow:0 4px 20px rgba(0,0,0,0.12);
+  display:none; flex-direction:column; z-index:500; overflow:hidden;
+}
+#gifPicker.open { display:flex; }
+.gif-search-row { padding:8px; border-bottom:1px solid var(--border-light); }
+.gif-search-row input {
+  width:100%; padding:6px 10px; border:1px solid var(--border);
+  border-radius:6px; font-size:13px; outline:none; font-family:inherit;
+}
+.gif-search-row input:focus { border-color:var(--blue); }
+#gifResults {
+  display:grid; grid-template-columns:repeat(3,1fr);
+  gap:4px; padding:6px; overflow-y:auto; flex:1;
+}
+.gif-thumb {
+  width:100%; aspect-ratio:1; object-fit:cover;
+  border-radius:4px; cursor:pointer; transition:opacity 0.1s;
+}
+.gif-thumb:hover { opacity:0.85; }
+
+/* ── CALENDAR ── */
+.cal-nav {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 24px 0;
+}
+.cal-nav-btn {
+  width:32px; height:32px; border-radius:8px;
+  border:1px solid var(--border); background:white;
+  cursor:pointer; font-size:16px; display:flex;
+  align-items:center; justify-content:center;
+  transition:background 0.1s;
+}
+.cal-nav-btn:hover { background:var(--blue-xlight); }
+.cal-month-label { font-size:15px; font-weight:600; color:var(--text-primary); }
+.cal-grid-header {
+  display:grid; grid-template-columns:repeat(7,1fr);
+  padding:10px 24px 4px; gap:2px;
+}
+.cal-grid-header div {
+  text-align:center; font-size:11px; font-weight:600;
+  color:var(--text-muted); text-transform:uppercase;
+}
+.cal-grid {
+  display:grid; grid-template-columns:repeat(7,1fr);
+  padding:0 24px; gap:2px; flex-shrink:0;
+}
+.cal-cell {
+  min-height:52px; border-radius:6px; padding:4px;
+  cursor:pointer; transition:background 0.1s; position:relative;
+}
+.cal-cell:hover { background:var(--blue-xlight); }
+.cal-blank { cursor:default; background:transparent !important; }
+.cal-today { background:var(--blue-xlight); }
+.cal-today .cal-day-num {
+  background:var(--blue); color:white;
+  border-radius:50%; width:22px; height:22px;
+  display:flex; align-items:center; justify-content:center;
+}
+.cal-day-num { font-size:12px; font-weight:500; color:var(--text-secondary); margin-bottom:2px; }
+.cal-event-dot {
+  width:6px; height:6px; border-radius:50%;
+  background:var(--blue); margin:1px auto;
+}
+.cal-upcoming { padding:16px 24px; overflow-y:auto; flex:1; }
+.cal-upcoming-title { font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); margin-bottom:10px; }
+.cal-event-row {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 12px; border-radius:8px; cursor:pointer;
+  border:1px solid var(--border-light); margin-bottom:6px;
+  transition:background 0.1s;
+}
+.cal-event-row:hover { background:#fef2f2; }
+.cal-event-color { width:10px; height:10px; border-radius:50%; background:var(--blue); flex-shrink:0; }
+.cal-event-info { flex:1; min-width:0; }
+.cal-event-name { font-size:13px; font-weight:500; color:var(--text-primary); }
+.cal-event-time { font-size:11px; color:var(--text-muted); margin-top:2px; }
+.cal-event-del { font-size:14px; opacity:0.4; }
+.cal-event-del:hover { opacity:1; }
+.cal-no-events { font-size:13px; color:var(--text-muted); text-align:center; padding:20px 0; }
+
+/* ══ TEAMS ══ */
+.teams-layout {
+  display: flex; flex: 1; overflow: hidden;
+}
+.teams-sidebar {
+  width: 220px; flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  overflow-y: auto; padding: 8px 0;
+  display: flex; flex-direction: column;
+}
+.teams-empty {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  flex: 1; padding: 24px;
+}
+.teams-main {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden;
+}
+.teams-welcome {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  color: var(--text-muted); text-align: center; padding: 40px;
+}
+.team-item { margin-bottom: 4px; }
+.team-item-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; cursor: pointer; border-radius: 6px;
+  transition: background 0.1s; margin: 0 6px;
+}
+.team-item-header:hover { background: var(--border-light); }
+.team-avatar {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: var(--blue); color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; flex-shrink: 0;
+}
+.team-name { flex: 1; font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.team-chevron { font-size: 11px; color: var(--text-muted); }
+.team-channels { display: none; padding: 0 6px; }
+.team-channels.open { display: block; }
+.channel-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px 6px 36px; border-radius: 6px;
+  cursor: pointer; font-size: 13px; color: var(--text-secondary);
+  transition: background 0.1s;
+}
+.channel-row:hover { background: var(--border-light); color: var(--text-primary); }
+.channel-row.active { background: var(--blue-xlight); color: var(--blue-dark); font-weight: 600; }
+.channel-hash { color: var(--text-muted); font-size: 14px; }
+.team-add-channel {
+  padding: 5px 12px 5px 36px; font-size: 12px;
+  color: var(--blue); cursor: pointer; border-radius: 6px;
+  margin: 0 6px; transition: background 0.1s;
+}
+.team-add-channel:hover { background: var(--blue-xlight); }
+.team-chan-header {
+  height: 52px; flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 20px; background: white;
+}
+.team-chan-name { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.team-messages {
+  flex: 1; overflow-y: auto;
+  padding: 16px 0 8px; display: flex; flex-direction: column;
+}
+.team-composer {
+  padding: 10px 16px 14px; background: white;
+  border-top: 1px solid var(--border);
+  display: flex; align-items: flex-end; gap: 8px; flex-shrink: 0;
+}
+.team-msg-input {
+  flex: 1; border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 12px; font-size: 13.5px; font-family: inherit;
+  resize: none; outline: none; min-height: 38px; max-height: 120px;
+  transition: border-color 0.15s;
+}
+.team-msg-input:focus { border-color: var(--blue); }
+.team-send-btn {
+  width: 36px; height: 36px; border-radius: 8px;
+  background: var(--blue); border: none; color: white;
+  cursor: pointer; font-size: 15px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.12s;
+}
+.team-send-btn:hover { background: var(--blue-dark); }
+
+/* ══ FILES ══ */
+.files-filter-bar {
+  display: flex; gap: 6px; padding: 12px 24px 0; flex-shrink: 0;
+}
+.files-filter-btn {
+  padding: 5px 14px; border-radius: 20px;
+  border: 1px solid var(--border); background: white;
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  color: var(--text-secondary); transition: all 0.12s; font-family: inherit;
+}
+.files-filter-btn:hover { background: var(--blue-xlight); border-color: var(--blue-light); color: var(--blue-dark); }
+.files-filter-btn.active { background: var(--blue); border-color: var(--blue); color: white; }
+.files-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px; padding: 16px 24px; overflow-y: auto; flex: 1;
+}
+.files-item {
+  border-radius: 8px; overflow: hidden;
+  border: 1px solid var(--border); background: white;
+  transition: box-shadow 0.12s; cursor: pointer;
+}
+.files-item:hover { box-shadow: var(--shadow-md); }
+.files-item img {
+  width: 100%; aspect-ratio: 1; object-fit: cover; display: block;
+}
+.files-item-meta { padding: 6px 8px; }
+.files-item-chat { font-size: 11px; font-weight: 600; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.files-item-time { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+.files-loading { grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted); font-size: 13px; }
+
+/* ══ APPS ══ */
+.apps-search-bar {
+  display: flex; align-items: center; gap: 8px;
+  margin: 14px 24px 0; padding: 8px 12px;
+  border: 1px solid var(--border); border-radius: 8px; background: white;
+}
+.apps-search-bar span { color: var(--text-muted); }
+.apps-search-bar input {
+  flex: 1; border: none; outline: none; font-size: 13px;
+  color: var(--text-primary); font-family: inherit; background: transparent;
+}
+.apps-section-label {
+  padding: 12px 24px 4px;
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.6px; color: var(--text-muted);
+}
+.apps-grid { padding: 0 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.app-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; border-radius: 10px;
+  border: 1px solid var(--border); background: white;
+  transition: box-shadow 0.12s;
+}
+.app-card:hover { box-shadow: var(--shadow-sm); }
+.app-icon { font-size: 26px; flex-shrink: 0; width: 36px; text-align: center; }
+.app-info { flex: 1; min-width: 0; }
+.app-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.app-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.app-btn {
+  padding: 5px 14px; border-radius: 6px; font-size: 12px;
+  font-weight: 600; cursor: pointer; font-family: inherit;
+  border: none; flex-shrink: 0; transition: background 0.12s;
+}
+.app-btn-add { background: var(--blue); color: white; }
+.app-btn-add:hover { background: var(--blue-dark); }
+.app-btn-remove { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
+.app-btn-remove:hover { background: #fee2e2; }
+.apps-empty { font-size: 13px; color: var(--text-muted); padding: 12px 0; }
+
 /* Live presence dot on sidebar DM avatars */
 .ci-live-dot {
   position: absolute;
@@ -1670,6 +2501,25 @@ window.loadMembersPanel = function() {
   background: #8a8a8a;
   border: 2px solid var(--sidebar-bg);
   pointer-events: none;
+}
+
+/* Stack bubbles vertically inside a message group */
+.mg-body {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start;
+}
+.msgGroup.me .mg-body {
+  align-items: flex-end;
+}
+
+/* Continuation bubbles (grouped, same sender) get fully rounded corners */
+.bubble.bubble-continuation {
+  margin-top: 3px;
+  border-radius: 12px;
+}
+.bubble.bubble-continuation.me {
+  border-radius: 12px;
 }
 </style>
 
