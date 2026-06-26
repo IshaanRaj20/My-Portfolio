@@ -1842,11 +1842,20 @@ function loadFiles(){
     const key=myKey(user.email); const promises=[];
     Object.entries(chats).forEach(([cid,chat])=>{
       if(!chat.members||!chat.members[key])return;
-      promises.push(db.ref('chats/'+cid+'/messages').once('value').then(msgSnap=>{
-        const msgs=msgSnap.val(); if(!msgs)return;
-        Object.values(msgs).forEach(m=>{
-          if((m.type==='image'||m.type==='gif')&&m.imageUrl) allFiles.push({...m,chatName:chat.name});
-          if(m.type==='recording'&&m.fileUrl) allFiles.push({...m,chatName:chat.name});
+
+      // Resolve the real label — same logic as loadChats()
+      const memberEmails = chat.members ? Object.keys(chat.members).map(k=>k.replace(/_/g,'.')) : [];
+      const others = memberEmails.filter(e=>e!==user.email);
+      const isDM   = others.length===1 && !chat.isGroup;
+      const labelPromise = isDM ? resolveDisplayName(others[0]) : Promise.resolve(chat.name||'Chat');
+
+      promises.push(labelPromise.then(chatLabel=>{
+        return db.ref('chats/'+cid+'/messages').once('value').then(msgSnap=>{
+          const msgs=msgSnap.val(); if(!msgs)return;
+          Object.values(msgs).forEach(m=>{
+            if((m.type==='image'||m.type==='gif')&&m.imageUrl) allFiles.push({...m,chatName:chatLabel});
+            if(m.type==='recording'&&m.fileUrl) allFiles.push({...m,chatName:chatLabel});
+          });
         });
       }));
     });
