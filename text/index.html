@@ -203,6 +203,7 @@
       <button class="files-filter-btn active" data-filter="all" onclick="setFilesFilter('all',this)">All</button>
       <button class="files-filter-btn" data-filter="image" onclick="setFilesFilter('image',this)">Images</button>
       <button class="files-filter-btn" data-filter="gif" onclick="setFilesFilter('gif',this)">GIFs</button>
+      <button class="files-filter-btn" data-filter="recording" onclick="setFilesFilter('recording',this)">Recordings</button>
     </div>
     <div class="files-grid" id="filesGrid"><div class="files-loading">Loading files…</div></div>
   </div>
@@ -657,7 +658,6 @@ auth.onAuthStateChanged(u => {
     document.getElementById('navAvatar').textContent = (u.displayName || u.email)[0].toUpperCase();
     loadChats();
     listenCalls();
-    listenEvents();
   } else {
     auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
   }
@@ -754,8 +754,6 @@ function openChat(id){
       }
     });
   });
-
-  let lastDate = null;
 
   let lastDate = null;
   messageListener = function(s){
@@ -1690,8 +1688,10 @@ function initCalendar(){ renderCalendar(); listenEvents(); }
 function calPrev(){calMonth--;if(calMonth<0){calMonth=11;calYear--;}renderCalendar();}
 function calNext(){calMonth++;if(calMonth>11){calMonth=0;calYear++;}renderCalendar();}
 let allEvents=[];
+let eventsListenerAttached = false;
 function listenEvents(){
-  if(!user)return;
+  if(!user || eventsListenerAttached) return;
+  eventsListenerAttached = true;
   db.ref('events/'+myKey(user.email)).on('value',snap=>{
     allEvents=[]; const val=snap.val();
     if(val)Object.entries(val).forEach(([k,v])=>allEvents.push({...v,id:k}));
@@ -1844,7 +1844,10 @@ function loadFiles(){
       if(!chat.members||!chat.members[key])return;
       promises.push(db.ref('chats/'+cid+'/messages').once('value').then(msgSnap=>{
         const msgs=msgSnap.val(); if(!msgs)return;
-        Object.values(msgs).forEach(m=>{if((m.type==='image'||m.type==='gif')&&m.imageUrl)allFiles.push({...m,chatName:chat.name});});
+        Object.values(msgs).forEach(m=>{
+          if((m.type==='image'||m.type==='gif')&&m.imageUrl) allFiles.push({...m,chatName:chat.name});
+          if(m.type==='recording'&&m.fileUrl) allFiles.push({...m,chatName:chat.name});
+        });
       }));
     });
     Promise.all(promises).then(()=>renderFiles());
@@ -1858,7 +1861,20 @@ function renderFiles(){
   grid.innerHTML='';
   filtered.forEach(f=>{
     const item=document.createElement('div'); item.className='files-item';
-    item.innerHTML=`<img src="${f.imageUrl}" alt="${f.type}" loading="lazy" onclick="window.open('${f.imageUrl}','_blank')"><div class="files-item-meta"><div class="files-item-chat">${f.chatName||'Chat'}</div><div class="files-item-time">${f.time?formatTime(f.time):''}</div></div>`;
+    if(f.type==='recording'){
+      const sizeStr = f.fileSize ? (f.fileSize>1048576?(f.fileSize/1048576).toFixed(1)+' MB':(f.fileSize/1024).toFixed(0)+' KB') : '';
+      item.innerHTML=`
+        <div class="files-item-rec" onclick="window.open('${f.fileUrl}','_blank')">
+          <div class="files-item-rec-icon">🎥</div>
+          <div class="files-item-rec-label">Recording</div>
+        </div>
+        <div class="files-item-meta">
+          <div class="files-item-chat">${f.chatName||'Chat'}${sizeStr?' · '+sizeStr:''}</div>
+          <div class="files-item-time">${f.time?formatTime(f.time):''}</div>
+        </div>`;
+    } else {
+      item.innerHTML=`<img src="${f.imageUrl}" alt="${f.type}" loading="lazy" onclick="window.open('${f.imageUrl}','_blank')"><div class="files-item-meta"><div class="files-item-chat">${f.chatName||'Chat'}</div><div class="files-item-time">${f.time?formatTime(f.time):''}</div></div>`;
+    }
     grid.appendChild(item);
   });
 }

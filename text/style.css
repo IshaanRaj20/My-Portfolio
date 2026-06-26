@@ -1090,3 +1090,16 @@ body {
   color: #fff;
 }
 .bubble.me .rec-download-btn:hover { background: rgba(255,255,255,0.3); }
+
+/* ── RECORDING TILE IN FILES VIEW ── */
+.files-item-rec {
+  width: 100%; aspect-ratio: 1;
+  background: linear-gradient(135deg, #1a1a30, #111118);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 6px; cursor: pointer;
+  transition: opacity 0.12s;
+}
+.files-item-rec:hover { opacity: 0.85; }
+.files-item-rec-icon { font-size: 32px; }
+.files-item-rec-label { font-size: 11px; color: rgba(255,255,255,0.5); font-weight: 500; }
