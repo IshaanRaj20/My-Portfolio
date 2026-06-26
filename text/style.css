@@ -1036,3 +1036,57 @@ body {
   .call-topbar { padding: 0 14px; }
   .call-topbar-right { display: none; }
 }
+
+/* ── RECORDING BUBBLE ── */
+.recording-bubble {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 280px;
+  max-width: 420px;
+}
+.rec-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.rec-icon { font-size: 22px; flex-shrink: 0; }
+.rec-info { flex: 1; min-width: 0; }
+.rec-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bubble.me .rec-name { color: #fff; }
+.rec-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.bubble.me .rec-meta { color: rgba(255,255,255,0.65); }
+.rec-video {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 8px;
+  background: #000;
+  display: block;
+}
+.rec-download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  background: var(--blue-xlight);
+  color: var(--blue-dark);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.12s;
+  align-self: flex-start;
+}
+.rec-download-btn:hover { background: var(--blue-light); }
+.bubble.me .rec-download-btn {
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+}
+.bubble.me .rec-download-btn:hover { background: rgba(255,255,255,0.3); }

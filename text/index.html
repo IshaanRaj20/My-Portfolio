@@ -13,6 +13,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-messaging-compat.js"></script>
+
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -673,26 +674,57 @@ function loadChats(){
     if(!chats) return;
     Object.entries(chats).forEach(([id, c]) => {
       if(!c.members || !c.members[key]) return;
+
+      // Work out if this is a 1-on-1 DM
+      const memberEmails = c.members ? Object.keys(c.members).map(k => k.replace(/_/g, '.')) : [];
+      const others = memberEmails.filter(e => e !== user.email);
+      const isDM   = others.length === 1 && !c.isGroup;
+
+      // Build the element with a placeholder while we resolve the real name
       const d = document.createElement('div');
       d.className = 'chatItem';
       d.dataset.chatId = id;
       d.innerHTML = `
-        <div class="ci-avatar group">${(c.name||'?')[0].toUpperCase()}</div>
+        <div class="ci-avatar ${isDM ? '' : 'group'}">…</div>
         <div class="ci-body">
           <div class="ci-top">
-            <div class="ci-name">${c.name||'Chat'}</div>
+            <div class="ci-name" style="visibility:hidden">…</div>
             <div class="ci-time">Now</div>
           </div>
           <div class="ci-preview">Click to open conversation</div>
         </div>`;
-      d.onclick = () => { openChat(id, c.name); setActiveChat(id); };
+      d.onclick = () => { openChat(id); setActiveChat(id); };
       document.getElementById('chatList').appendChild(d);
+
+      // Always resolve the real label:
+      // • DM  → other person's profile displayName (never the stored chat name)
+      // • Group → stored chat name
+      const labelPromise = isDM
+        ? resolveDisplayName(others[0])
+        : Promise.resolve(c.name || 'Chat');
+
+      labelPromise.then(label => {
+        const nameEl   = d.querySelector('.ci-name');
+        const avatarEl = d.querySelector('.ci-avatar');
+        const badge    = nameEl?.querySelector('.ci-pin-badge');
+        if(nameEl){
+          nameEl.textContent = label;
+          nameEl.style.visibility = '';
+          if(badge) nameEl.insertBefore(badge, nameEl.firstChild);
+        }
+        if(avatarEl){
+          const dot = avatarEl.querySelector('.ci-live-dot');
+          avatarEl.textContent = label[0].toUpperCase();
+          if(dot) avatarEl.appendChild(dot);
+        }
+        if(isDM) attachPresenceDot(d, others[0]);
+      });
     });
   });
 }
 
 /* ── OPEN CHAT ── */
-function openChat(id, name){
+function openChat(id){
   chatId = id;
   document.getElementById('emptyState').style.display = 'none';
   document.getElementById('chat').style.display = 'flex';
@@ -706,13 +738,24 @@ function openChat(id, name){
 
   db.ref('chats/' + id).once('value').then(snap => {
     const c = snap.val();
-    if(c){
-      document.getElementById('chatHeaderName').textContent = c.name || 'Chat';
-      document.getElementById('chatHeaderIcon').textContent = (c.name||'?')[0].toUpperCase();
-      const members = c.members ? Object.keys(c.members).map(k => k.replace(/_/g,'.')).join(', ') : '';
-      document.getElementById('chatHeaderMembers').textContent = members || 'TeamChat';
-    }
+    if(!c) return;
+    const memberEmails = c.members ? Object.keys(c.members).map(k => k.replace(/_/g,'.')) : [];
+    const others = memberEmails.filter(e => e !== user.email);
+    const isDM   = others.length === 1 && !c.isGroup;
+    // For DMs always use the other person's real profile displayName, never stored chat name
+    const labelPromise = isDM ? resolveDisplayName(others[0]) : Promise.resolve(c.name || 'Chat');
+    labelPromise.then(label => {
+      document.getElementById('chatHeaderName').textContent = label;
+      document.getElementById('chatHeaderIcon').textContent = label[0].toUpperCase();
+      if(isDM){
+        watchHeaderPresence(others[0]);
+      } else {
+        document.getElementById('chatHeaderMembers').textContent = memberEmails.join(', ') || 'TeamChat';
+      }
+    });
   });
+
+  let lastDate = null;
 
   let lastDate = null;
   messageListener = function(s){
@@ -759,12 +802,31 @@ function openChat(id, name){
           if(msg.type==='image') img.onclick = () => window.open(msg.imageUrl,'_blank');
           return img;
         }
+        if(msg.type==='recording' && msg.fileUrl){
+          const wrap = document.createElement('div');
+          wrap.className = 'recording-bubble';
+          const sizeStr = msg.fileSize ? (msg.fileSize > 1048576
+            ? (msg.fileSize/1048576).toFixed(1)+' MB'
+            : (msg.fileSize/1024).toFixed(0)+' KB') : '';
+          wrap.innerHTML = `
+            <div class="rec-header">
+              <span class="rec-icon">🎥</span>
+              <div class="rec-info">
+                <div class="rec-name">${msg.fileName || 'Call recording'}</div>
+                <div class="rec-meta">Call recording${sizeStr ? ' · '+sizeStr : ''}</div>
+              </div>
+            </div>
+            <video class="rec-video" src="${msg.fileUrl}" controls preload="metadata"></video>
+            <a class="rec-download-btn" href="${msg.fileUrl}" download="${msg.fileName||'recording.webm'}" target="_blank">⬇ Download recording</a>`;
+          return wrap;
+        }
         const div = document.createElement('div');
         div.innerHTML = renderMarkdown(msg.text||'');
         return div;
       }
 
-      if(lastGroup && lastGroup.dataset.sender===senderEmail && m.type!=='image' && m.type!=='gif'){
+      const isMedia = m.type==='image'||m.type==='gif'||m.type==='recording';
+      if(lastGroup && lastGroup.dataset.sender===senderEmail && !isMedia){
         const bubble = document.createElement('div');
         bubble.className = 'bubble bubble-continuation'+(isMe?' me':'');
         bubble.appendChild(renderBubbleContent(m));
@@ -777,7 +839,7 @@ function openChat(id, name){
         bodyDiv.className = 'mg-body';
         bodyDiv.innerHTML = `<div class="mg-header"><span class="mg-sender">${senderName}</span><span class="mg-time">${m.time?formatTime(m.time):''}</span></div>`;
         const bubble = document.createElement('div');
-        bubble.className = 'bubble'+(isMe?' me':'')+((m.type==='image'||m.type==='gif')?' bubble-media':'');
+        bubble.className = 'bubble'+(isMe?' me':'')+(isMedia?' bubble-media':'');
         bubble.appendChild(renderBubbleContent(m));
         bodyDiv.appendChild(bubble);
         row.innerHTML = `<div class="mg-avatar" style="${avatarColor}">${initials}</div>`;
@@ -982,7 +1044,12 @@ function stopCall(){
   }
   if(stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
   if(screenStream){ screenStream.getTracks().forEach(t => t.stop()); screenStream = null; }
-  if(typeof recorder !== 'undefined' && recording){ recorder.stop(); recording = false; }
+  if(typeof recorder !== 'undefined' && recorder && recording){
+    recorder.stop(); // triggers finaliseRecording via onstop
+    cancelAnimationFrame(recAnimId);
+    if(recAudioCtx) recAudioCtx.close().catch(()=>{});
+    recording = false;
+  }
 
   document.getElementById('callUI').style.display = 'none';
   document.getElementById('incomingOverlay').style.display = 'none';
@@ -1018,17 +1085,204 @@ async function toggleScreen(){
   }
 }
 
-let recorder, chunks = [], recording = false;
+/* ═══════════════════════════════════════════════════════════════
+   CALL RECORDING — composites both participants into one WebM,
+   uploads to Firebase Storage, then posts a file message in the
+   chat so every participant can see and download it.
+   ═══════════════════════════════════════════════════════════════ */
+
+let recorder   = null;
+let recChunks  = [];
+let recording  = false;
+let recCanvas  = null;
+let recCtx     = null;
+let recAnimId  = null;
+let recAudioCtx   = null;
+let recDestNode   = null;
+let recMixedStream = null;
+
 function toggleRecord(){
-  if(!stream) return;
   const btn = document.getElementById('recordBtn');
   if(!recording){
-    chunks = []; recorder = new MediaRecorder(stream);
-    recorder.ondataavailable = e => chunks.push(e.data);
-    recorder.start(); recording = true; btn.classList.add('off');
+    startRecording(btn);
   } else {
-    recorder.stop(); recording = false; btn.classList.remove('off');
+    stopRecording(btn);
   }
+}
+
+function startRecording(btn){
+  if(!stream){ showToast('No local stream — join a call first'); return; }
+
+  /* ── 1. Canvas compositor: draws remote video (full) + self PiP ── */
+  recCanvas = document.createElement('canvas');
+  recCanvas.width  = 1280;
+  recCanvas.height = 720;
+  recCtx = recCanvas.getContext('2d');
+
+  const remoteVid = document.getElementById('remoteVideo');
+  const selfVid   = document.getElementById('selfVideoEl');
+
+  function drawFrame(){
+    recCtx.fillStyle = '#111118';
+    recCtx.fillRect(0, 0, recCanvas.width, recCanvas.height);
+
+    // Remote video fills the canvas
+    if(remoteVid && remoteVid.srcObject && remoteVid.readyState >= 2){
+      recCtx.drawImage(remoteVid, 0, 0, recCanvas.width, recCanvas.height);
+    } else {
+      // Draw avatar placeholder when no remote video
+      recCtx.fillStyle = '#1a1a30';
+      recCtx.fillRect(0, 0, recCanvas.width, recCanvas.height);
+      recCtx.fillStyle = 'rgba(255,255,255,0.15)';
+      recCtx.font = 'bold 80px Inter, sans-serif';
+      recCtx.textAlign = 'center';
+      recCtx.fillText(
+        document.getElementById('remoteTileAvatar')?.textContent || '?',
+        recCanvas.width/2, recCanvas.height/2 + 28
+      );
+    }
+
+    // Self PiP — bottom-right corner, mirrored to match what user sees
+    if(selfVid && selfVid.srcObject && selfVid.readyState >= 2){
+      const pw = 280, ph = 200;
+      const px = recCanvas.width  - pw - 20;
+      const py = recCanvas.height - ph - 20;
+      recCtx.save();
+      recCtx.translate(px + pw, py);
+      recCtx.scale(-1, 1); // mirror
+      recCtx.drawImage(selfVid, 0, 0, pw, ph);
+      recCtx.restore();
+      // PiP border
+      recCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+      recCtx.lineWidth = 2;
+      recCtx.strokeRect(px, py, pw, ph);
+      // "You" label
+      recCtx.fillStyle = 'rgba(255,255,255,0.75)';
+      recCtx.font = '14px Inter, sans-serif';
+      recCtx.textAlign = 'left';
+      recCtx.fillText('You', px + 8, py + ph - 8);
+    }
+
+    // Recording indicator — red dot top-left
+    const now = Date.now();
+    if(Math.floor(now / 600) % 2 === 0){
+      recCtx.beginPath();
+      recCtx.arc(24, 24, 8, 0, Math.PI*2);
+      recCtx.fillStyle = '#ef4444';
+      recCtx.fill();
+      recCtx.fillStyle = 'white';
+      recCtx.font = 'bold 13px Inter, sans-serif';
+      recCtx.textAlign = 'left';
+      recCtx.fillText('REC', 38, 29);
+    }
+
+    recAnimId = requestAnimationFrame(drawFrame);
+  }
+  drawFrame();
+
+  /* ── 2. Web Audio: mix local mic + remote audio ── */
+  recAudioCtx  = new AudioContext();
+  recDestNode  = recAudioCtx.createMediaStreamDestination();
+
+  // Local mic
+  if(stream.getAudioTracks().length){
+    const localSrc = recAudioCtx.createMediaStreamSource(stream);
+    localSrc.connect(recDestNode);
+  }
+
+  // Remote audio — grab from the <audio> element's srcObject
+  const remoteAudioEl = document.getElementById('remoteAudio');
+  if(remoteAudioEl && remoteAudioEl.srcObject){
+    try{
+      const remoteSrc = recAudioCtx.createMediaStreamSource(remoteAudioEl.srcObject);
+      remoteSrc.connect(recDestNode);
+    } catch(e){ console.warn('[REC] remote audio source failed:', e); }
+  }
+
+  /* ── 3. Combine canvas video + mixed audio into one stream ── */
+  const videoTrack = recCanvas.captureStream(30).getVideoTracks()[0];
+  const audioTrack = recDestNode.stream.getAudioTracks()[0];
+  const tracks = [videoTrack];
+  if(audioTrack) tracks.push(audioTrack);
+  recMixedStream = new MediaStream(tracks);
+
+  /* ── 4. MediaRecorder on the mixed stream ── */
+  const mimeType = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm']
+    .find(t => MediaRecorder.isTypeSupported(t)) || '';
+  recChunks = [];
+  recorder  = new MediaRecorder(recMixedStream, mimeType ? {mimeType} : {});
+  recorder.ondataavailable = e => { if(e.data.size > 0) recChunks.push(e.data); };
+  recorder.onstop = finaliseRecording;
+  recorder.start(1000); // collect a chunk every second
+
+  recording = true;
+  btn.classList.add('off');
+  btn.title = 'Stop recording';
+  showToast('⏺ Recording started — both participants captured');
+}
+
+function stopRecording(btn){
+  if(recorder && recorder.state !== 'inactive') recorder.stop();
+  cancelAnimationFrame(recAnimId);
+  recAnimId = null;
+  if(recAudioCtx) recAudioCtx.close().catch(()=>{});
+  recAudioCtx = null;
+  recording = false;
+  btn.classList.remove('off');
+  btn.title = 'Record';
+  showToast('⏸ Recording stopped — saving…');
+}
+
+async function finaliseRecording(){
+  if(!recChunks.length){ showToast('Recording was empty'); return; }
+
+  const blob     = new Blob(recChunks, {type: recorder.mimeType || 'video/webm'});
+  const ts       = new Date().toISOString().replace(/[:.]/g,'-');
+  const filename = `call-recording-${ts}.webm`;
+
+  showToast('⬆️ Uploading recording…');
+
+  try {
+    /* ── Upload to Cloudinary video endpoint (free, same credentials) ── */
+    const formData = new FormData();
+    formData.append('file', blob, filename);
+    formData.append('upload_preset', 'yfkvefxb');  // same preset as images
+    formData.append('resource_type', 'video');
+
+    const res  = await fetch('https://api.cloudinary.com/v1_1/df8v6dfqz/video/upload', {
+      method: 'POST',
+      body:   formData
+    });
+    const data = await res.json();
+    if(!data.secure_url) throw new Error(data.error?.message || 'No URL returned');
+
+    const url = data.secure_url;
+
+    /* ── Post as a recording message — all participants see it instantly ── */
+    await db.ref('chats/' + chatId + '/messages').push({
+      sender:   user.email,
+      type:     'recording',
+      fileUrl:  url,
+      fileName: filename,
+      fileSize: blob.size,
+      text:     '',
+      time:     Date.now()
+    });
+
+    showToast('✅ Recording saved to chat!');
+  } catch(err){
+    console.error('[REC] upload failed:', err);
+    /* Fallback: local download so the recording is never lost */
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement('a');
+    a.href    = url;
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 8000);
+    showToast('Upload failed — recording downloaded locally instead');
+  }
+
+  recChunks = [];
 }
 </script>
 
@@ -1301,50 +1555,9 @@ function resolveDisplayName(email){
     displayNameCache[email] = name; return name;
   });
 }
-function getChatLabel(chatData, myEmail){
-  const members = chatData.members ? Object.keys(chatData.members).map(k=>k.replace(/_/g,'.')) : [];
-  const others  = members.filter(e => e !== myEmail);
-  if(others.length !== 1 || chatData.isGroup) return Promise.resolve(chatData.name||'Chat');
-  return resolveDisplayName(others[0]);
-}
-function applyChatItemLabel(itemEl, label){
-  const nameEl = itemEl.querySelector('.ci-name');
-  if(nameEl){ const badge=nameEl.querySelector('.ci-pin-badge'); nameEl.textContent=label; if(badge)nameEl.insertBefore(badge,nameEl.firstChild); }
-  const avatarEl = itemEl.querySelector('.ci-avatar');
-  if(avatarEl){ const dot=avatarEl.querySelector('.ci-live-dot'); avatarEl.textContent=label[0].toUpperCase(); if(dot)avatarEl.appendChild(dot); }
-}
-(function patchLoadChats(){
-  function tryPatch(){
-    if(typeof db==='undefined'||typeof user==='undefined'||!user){ setTimeout(tryPatch,150); return; }
-    db.ref('chats').on('child_added', snap => {
-      const c = snap.val(); const key = myKey(user.email);
-      if(!c.members||!c.members[key]) return;
-      const members = c.members?Object.keys(c.members).map(k=>k.replace(/_/g,'.')):[];
-      const others = members.filter(e=>e!==user.email);
-      const isDM = others.length===1&&!c.isGroup;
-      getChatLabel(c, user.email).then(label => {
-        const existing = [...document.querySelectorAll('.chatItem')].find(el=>el.dataset.chatId===snap.key);
-        if(existing){ applyChatItemLabel(existing, label); if(isDM)attachPresenceDot(existing,others[0]); }
-      });
-    });
-    const _orig = openChat;
-    window.openChat = function(id, name){
-      _orig(id, name);
-      db.ref('chats/'+id).once('value').then(snap => {
-        const c = snap.val(); if(!c) return;
-        const members = c.members?Object.keys(c.members).map(k=>k.replace(/_/g,'.')):[];
-        const others = members.filter(e=>e!==user.email);
-        const isDM = others.length===1&&!c.isGroup;
-        getChatLabel(c, user.email).then(label => {
-          document.getElementById('chatHeaderName').textContent = label;
-          document.getElementById('chatHeaderIcon').textContent = label[0].toUpperCase();
-          if(isDM) watchHeaderPresence(others[0]);
-        });
-      });
-    };
-  }
-  tryPatch();
-})();
+/* getChatLabel / patchLoadChats removed — label resolution is now done
+   directly inside loadChats() and openChat() so there is no race condition
+   and the stored chat name (e.g. "Mom") is never shown for DMs. */
 
 let headerPresenceRef = null;
 function watchHeaderPresence(email){
