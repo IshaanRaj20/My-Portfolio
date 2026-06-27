@@ -8,6 +8,8 @@ const githubRoute  = require('./routes/github');
 const weatherRoute = require('./routes/weather');
 const zoomRoute    = require('./routes/zoom');
 const notionRoute  = require('./routes/notion');
+const registerPushRoutes = require('./push');
+registerPushRoutes(app);
 
 const app = express();
 
