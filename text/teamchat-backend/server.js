@@ -26,6 +26,9 @@ app.use(session({
 /* ── Health check ── */
 app.get('/', (req, res) => res.json({ status: 'TeamChat backend running ✅' }));
 
+/* ── Keepalive ping for UptimeRobot (prevents Render free tier from sleeping) ── */
+app.get('/ping', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
+
 /* ── Integration routes ── */
 app.use('/auth/google',  googleRoute);
 app.use('/auth/github',  githubRoute);
