@@ -2,53 +2,117 @@ importScripts("https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js
 importScripts("https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js");
 
 firebase.initializeApp({
-  apiKey: "AIzaSyDp1LSm2HlZ3xBDlwBPnEU62Es_KoyavUw",
-  authDomain: "secret-chat-6de59.firebaseapp.com",
-  projectId: "secret-chat-6de59",
+  apiKey:            "AIzaSyDp1LSm2HlZ3xBDlwBPnEU62Es_KoyavUw",
+  authDomain:        "secret-chat-6de59.firebaseapp.com",
+  projectId:         "secret-chat-6de59",
   messagingSenderId: "107760706349",
-  appId: "1:107760706349:web:aad5387e7d0003d90ca9a4"
+  appId:             "1:107760706349:web:aad5387e7d0003d90ca9a4"
 });
 
 const messaging = firebase.messaging();
 
-messaging.onBackgroundMessage((payload) => {
-  console.log("Background message:", payload);
+/* ── Dedup: ignore the same tag within 30 seconds ── */
+const shownTags = new Set();
+function isDupe(tag) {
+  if(!tag) return false;
+  if(shownTags.has(tag)) return true;
+  shownTags.add(tag);
+  setTimeout(() => shownTags.delete(tag), 30000);
+  return false;
+}
 
-  const title =
-    payload.notification?.title ||
-    payload.data?.title ||
-    "TeamChat";
+/* ── Build deep-link URL preserving the /text/ base path ── */
+function buildUrl(data) {
+  const base = self.registration.scope.replace(/\/$/, '');
+  if(data && data.type === 'call' && data.callId) return base + '/?call=' + data.callId;
+  if(data && data.chatId)                         return base + '/?chat=' + data.chatId;
+  return base + '/';
+}
 
-  const options = {
-    body:
-      payload.notification?.body ||
-      payload.data?.body ||
-      "",
-    icon: "/android-chrome-192x192.png",
-    badge: "/android-chrome-192x192.png",
-    data: payload.data || {}
+/* ================================================================
+   BACKGROUND PUSH — fires when app/tab/PWA is completely closed
+   ================================================================ */
+messaging.onBackgroundMessage(function(payload) {
+  console.log('[SW] background message:', payload);
+
+  var data  = payload.data        || {};
+  var notif = payload.notification || {};
+  var title = data.title  || notif.title || 'TeamChat';
+  var body  = data.body   || notif.body  || '';
+  var type  = data.type   || 'message';
+  var tag   = data.tag    || (type === 'call' ? 'call-' + data.callId : 'msg-' + data.chatId) || 'teamchat';
+
+  if(isDupe(tag)) return;
+
+  var options = {
+    body:     body,
+    icon:     '/android-chrome-192x192.png',
+    badge:    '/android-chrome-192x192.png',
+    tag:      tag,
+    renotify: type !== 'call',
+    data:     { url: buildUrl(data), type: type, chatId: data.chatId || '', callId: data.callId || '' }
   };
 
-  self.registration.showNotification(title, options);
+  if(type === 'call') {
+    options.requireInteraction = true;
+    options.vibrate            = [200, 100, 200, 100, 200];
+    options.actions            = [
+      { action: 'accept',  title: '✅ Accept'  },
+      { action: 'decline', title: '❌ Decline' }
+    ];
+  } else {
+    options.vibrate = [100, 50, 100];
+    options.actions = [
+      { action: 'open',    title: '💬 Open'    },
+      { action: 'dismiss', title: '✕ Dismiss'  }
+    ];
+  }
+
+  return self.registration.showNotification(title, options);
 });
 
-self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
+/* ================================================================
+   NOTIFICATION CLICK
+   ================================================================ */
+self.addEventListener('notificationclick', function(event) {
+  var notification = event.notification;
+  var action       = event.action;
+  var data         = notification.data || {};
+
+  notification.close();
+
+  if(action === 'dismiss' || action === 'decline') return;
+
+  var targetUrl = data.url || buildUrl(data);
 
   event.waitUntil(
-    clients.matchAll({
-      type: "window",
-      includeUncontrolled: true
-    }).then((clientList) => {
-      for (const client of clientList) {
-        if ("focus" in client) {
-          return client.focus();
-        }
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(list) {
+      var origin = new URL(self.registration.scope).origin;
+      var best   = null;
+
+      for(var i = 0; i < list.length; i++) {
+        var c = list[i];
+        if(c.url.indexOf(origin) !== 0) continue;
+        if(!best) best = c;
+        if(c.visibilityState === 'visible') { best = c; break; }
       }
 
-      if (clients.openWindow) {
-        return clients.openWindow("/");
+      if(best) {
+        best.postMessage({
+          type:   data.type === 'call' ? 'OPEN_CALL' : 'OPEN_CHAT',
+          chatId: data.chatId || '',
+          callId: data.callId || ''
+        });
+        return best.focus();
       }
+
+      return clients.openWindow(targetUrl);
     })
   );
 });
+
+/* ================================================================
+   LIFECYCLE
+   ================================================================ */
+self.addEventListener('install',  function()    { self.skipWaiting(); });
+self.addEventListener('activate', function(evt) { evt.waitUntil(self.clients.claim()); });

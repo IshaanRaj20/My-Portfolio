@@ -139,9 +139,12 @@
     </div>
     <div id="imagePreviewBar" style="display:none">
       <div class="img-preview-inner">
-        <img id="imagePreviewThumb" src="" alt="preview">
-        <button class="img-preview-remove" onclick="clearImageAttach()">✕</button>
+        <img id="imagePreviewThumb" src="" alt="preview" style="display:none">
+        <video id="videoPreviewThumb" src="" muted style="display:none"></video>
+        <div class="img-preview-type-icon" id="previewTypeIcon" style="display:none">🎬</div>
+        <button class="img-preview-remove" onclick="clearFileAttach()">✕</button>
         <span class="img-preview-name" id="imagePreviewName"></span>
+        <span class="img-preview-size" id="imagePreviewSize"></span>
       </div>
     </div>
   </div>
@@ -203,6 +206,7 @@
       <button class="files-filter-btn active" data-filter="all" onclick="setFilesFilter('all',this)">All</button>
       <button class="files-filter-btn" data-filter="image" onclick="setFilesFilter('image',this)">Images</button>
       <button class="files-filter-btn" data-filter="gif" onclick="setFilesFilter('gif',this)">GIFs</button>
+      <button class="files-filter-btn" data-filter="video" onclick="setFilesFilter('video',this)">Videos</button>
       <button class="files-filter-btn" data-filter="recording" onclick="setFilesFilter('recording',this)">Recordings</button>
     </div>
     <div class="files-grid" id="filesGrid"><div class="files-loading">Loading files…</div></div>
@@ -595,40 +599,115 @@ const db        = firebase.database();
 const messaging = firebase.messaging();
 
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('/text/firebase-messaging-sw.js')
-    .then(() => console.log('SW registered'))
-    .catch(err => console.error('SW error:', err));
+  navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' })
+    .then(reg => {
+      console.log('[SW] registered, scope:', reg.scope);
+      /* Listen for messages FROM the service worker (notification clicks) */
+      navigator.serviceWorker.addEventListener('message', event => {
+        const msg = event.data;
+        if(!msg) return;
+        if(msg.type === 'OPEN_CHAT' && msg.chatId) {
+          /* Switch to the correct chat */
+          switchView('chat');
+          openChat(msg.chatId);
+          setActiveChat(msg.chatId);
+          document.body.classList.add('mobile-chat-open');
+        }
+        if(msg.type === 'OPEN_CALL' && msg.callId) {
+          /* The call UI is shown by listenCalls() which is already running */
+          console.log('[SW] open call:', msg.callId);
+        }
+      });
+    })
+    .catch(err => console.error('[SW] registration failed:', err));
 }
 
 /* ── PUSH NOTIFICATIONS ── */
+const shownNotifIds = new Set(); /* client-side dedup for foreground */
+
 async function setupPushNotifications(){
-  if(!('Notification' in window)) return;
+  if(!('Notification' in window) || !('serviceWorker' in navigator)) return;
   try {
     const permission = await Notification.requestPermission();
-    if(permission !== 'granted'){ console.log('[Push] denied'); return; }
-    const reg   = await navigator.serviceWorker.ready;
+    if(permission !== 'granted'){ console.log('[Push] permission denied'); return; }
+
+    const reg = await navigator.serviceWorker.ready;
+
+    /* Get or refresh FCM token */
     const token = await messaging.getToken({
       vapidKey: 'BPJNZcIG3hM5zaSPt6NG2RrAFoLJ6SLz-44LIIKUC8thYc9SY_ycAJ21mvse36DTQgGGn3-TkxCcQj1bqDCoc9s',
       serviceWorkerRegistration: reg
     });
-    if(token) await db.ref('notificationTokens/' + myKey(user.email)).set(token);
-  } catch(err){ console.warn('[Push] setup failed:', err.message); }
-
-  messaging.onMessage(payload => {
-    const title = payload.notification?.title || payload.data?.title || 'TeamChat';
-    const body  = payload.notification?.body  || payload.data?.body  || '';
-    if(Notification.permission === 'granted'){
-      new Notification(title, { body, icon: '/android-chrome-192x192.png', badge: '/favicon-32x32.png', tag: payload.data?.chatId || 'teamchat', renotify: true });
+    if(token){
+      /* Store as a string under the user's key */
+      await db.ref('notificationTokens/' + myKey(user.email)).set(token);
+      console.log('[Push] token registered');
     }
-  });
+
+    /* Foreground messages — app is open, SW won't show a notification,
+       so we show one here AND navigate if the user is elsewhere */
+    messaging.onMessage(payload => {
+      const data  = payload.data || {};
+      const notif = payload.notification || {};
+      const title = data.title || notif.title || 'TeamChat';
+      const body  = data.body  || notif.body  || '';
+      const tag   = data.tag   || 'teamchat';
+
+      /* Dedup */
+      if(shownNotifIds.has(tag)) return;
+      shownNotifIds.add(tag);
+      setTimeout(() => shownNotifIds.delete(tag), 30000);
+
+      /* Don't notify for the chat we're already looking at */
+      if(data.type === 'message' && data.chatId && data.chatId === chatId) return;
+
+      new Notification(title, {
+        body,
+        icon:     '/android-chrome-192x192.png',
+        badge:    '/favicon-32x32.png',
+        tag,
+        renotify: true
+      });
+    });
+
+    /* Handle ?chat= and ?call= query params when app is launched by a
+       notification click while the app was closed */
+    handleLaunchUrl();
+
+  } catch(err){ console.warn('[Push] setup failed:', err.message); }
+}
+
+/* Called on launch — checks URL params set by the SW's buildUrl() */
+function handleLaunchUrl(){
+  const params = new URLSearchParams(window.location.search);
+  const chatParam = params.get('chat');
+  const callParam = params.get('call');
+  if(chatParam){
+    /* Wait for auth then open the chat */
+    (function waitAndOpen(){
+      if(user){ openChat(chatParam); setActiveChat(chatParam); switchView('chat'); document.body.classList.add('mobile-chat-open'); }
+      else setTimeout(waitAndOpen, 300);
+    })();
+    /* Clean the URL without reloading */
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+  if(callParam){
+    /* listenCalls() will pick it up once auth fires */
+    window.history.replaceState({}, '', window.location.pathname);
+  }
 }
 
 function notifyIncomingCall(callerEmail){
+  /* Foreground only — background is handled by the SW via FCM push from backend */
   if(!('Notification' in window) || Notification.permission !== 'granted') return;
-  new Notification('Incoming call · TeamChat', {
-    body: callerEmail + ' is calling you',
-    icon: '/android-chrome-192x192.png',
-    tag: 'call',
+  const tag = 'call-foreground';
+  if(shownNotifIds.has(tag)) return;
+  shownNotifIds.add(tag);
+  setTimeout(() => shownNotifIds.delete(tag), 60000);
+  new Notification('📞 Incoming call · TeamChat', {
+    body:               callerEmail + ' is calling you',
+    icon:               '/android-chrome-192x192.png',
+    tag,
     requireInteraction: true
   });
 }
@@ -800,6 +879,21 @@ function openChat(id){
           if(msg.type==='image') img.onclick = () => window.open(msg.imageUrl,'_blank');
           return img;
         }
+        if(msg.type==='video' && msg.fileUrl){
+          const wrap = document.createElement('div');
+          wrap.className = 'video-bubble';
+          const sizeStr = msg.fileSize ? (msg.fileSize > 1048576
+            ? (msg.fileSize/1048576).toFixed(1)+' MB'
+            : (msg.fileSize/1024).toFixed(0)+' KB') : '';
+          wrap.innerHTML = `
+            <video class="chat-video" src="${msg.fileUrl}" controls preload="metadata" playsinline></video>
+            <div class="video-bubble-footer">
+              <span class="video-bubble-name">${msg.fileName || 'Video'}</span>
+              ${sizeStr ? '<span class="video-bubble-size">'+sizeStr+'</span>' : ''}
+              <a class="video-bubble-dl" href="${msg.fileUrl}" download="${msg.fileName||'video.mp4'}" target="_blank">⬇</a>
+            </div>`;
+          return wrap;
+        }
         if(msg.type==='recording' && msg.fileUrl){
           const wrap = document.createElement('div');
           wrap.className = 'recording-bubble';
@@ -814,7 +908,7 @@ function openChat(id){
                 <div class="rec-meta">Call recording${sizeStr ? ' · '+sizeStr : ''}</div>
               </div>
             </div>
-            <video class="rec-video" src="${msg.fileUrl}" controls preload="metadata"></video>
+            <video class="rec-video" src="${msg.fileUrl}" controls preload="metadata" playsinline></video>
             <a class="rec-download-btn" href="${msg.fileUrl}" download="${msg.fileName||'recording.webm'}" target="_blank">⬇ Download recording</a>`;
           return wrap;
         }
@@ -823,7 +917,7 @@ function openChat(id){
         return div;
       }
 
-      const isMedia = m.type==='image'||m.type==='gif'||m.type==='recording';
+      const isMedia = m.type==='image'||m.type==='gif'||m.type==='video'||m.type==='recording';
       if(lastGroup && lastGroup.dataset.sender===senderEmail && !isMedia){
         const bubble = document.createElement('div');
         bubble.className = 'bubble bubble-continuation'+(isMe?' me':'');
@@ -869,7 +963,7 @@ function formatTime(ms){
 function send(){
   const msgEl = document.getElementById('msg');
   const text  = msgEl.value.trim();
-  if(pendingImageFile) uploadImageAndSend();
+  if(pendingFile) uploadFileAndSend();
   if(!text) return;
   db.ref('chats/'+chatId+'/messages').push({ sender:user.email, text, time:Date.now() });
   msgEl.value = ''; msgEl.style.height = 'auto';
@@ -1486,36 +1580,115 @@ function wrapSelection(marker){
   autoResize(el);
 }
 
-let pendingImageFile = null;
+let pendingFile = null; // replaces pendingImageFile
+
 function handleFileAttach(e){
   const file = e.target.files[0]; if(!file) return; e.target.value = '';
-  if(file.type.startsWith('image/')){
-    pendingImageFile = file;
+  const isImage = file.type.startsWith('image/');
+  const isVideo = file.type.startsWith('video/');
+  if(!isImage && !isVideo){ showToast('Only images and videos are supported.'); return; }
+
+  // Size guard: 100 MB for video, 10 MB for image
+  const maxBytes = isVideo ? 100*1024*1024 : 10*1024*1024;
+  if(file.size > maxBytes){
+    showToast(isVideo ? 'Video must be under 100 MB' : 'Image must be under 10 MB');
+    return;
+  }
+
+  pendingFile = file;
+  const sizeStr = file.size > 1048576
+    ? (file.size/1048576).toFixed(1)+' MB'
+    : (file.size/1024).toFixed(0)+' KB';
+
+  const imgThumb   = document.getElementById('imagePreviewThumb');
+  const vidThumb   = document.getElementById('videoPreviewThumb');
+  const typeIcon   = document.getElementById('previewTypeIcon');
+  const nameEl     = document.getElementById('imagePreviewName');
+  const sizeEl     = document.getElementById('imagePreviewSize');
+  const bar        = document.getElementById('imagePreviewBar');
+
+  // Reset all
+  imgThumb.style.display = 'none'; imgThumb.src = '';
+  vidThumb.style.display = 'none'; vidThumb.src = '';
+  typeIcon.style.display = 'none';
+
+  nameEl.textContent = file.name;
+  sizeEl.textContent = sizeStr;
+
+  if(isImage){
     const reader = new FileReader();
-    reader.onload = ev => {
-      document.getElementById('imagePreviewThumb').src = ev.target.result;
-      document.getElementById('imagePreviewName').textContent = file.name;
-      document.getElementById('imagePreviewBar').style.display = 'flex';
-    };
+    reader.onload = ev => { imgThumb.src = ev.target.result; imgThumb.style.display = 'block'; };
     reader.readAsDataURL(file);
-  } else { showToast('Only image uploads are supported right now.'); }
+  } else {
+    // Video — show icon + first-frame thumbnail via object URL
+    const url = URL.createObjectURL(file);
+    vidThumb.src = url;
+    vidThumb.style.display = 'block';
+    typeIcon.style.display = 'flex';
+    vidThumb.addEventListener('loadeddata', () => URL.revokeObjectURL(url), {once:true});
+  }
+
+  bar.style.display = 'flex';
 }
-function clearImageAttach(){
-  pendingImageFile = null;
+
+function clearFileAttach(){
+  pendingFile = null;
   document.getElementById('imagePreviewBar').style.display = 'none';
   document.getElementById('imagePreviewThumb').src = '';
+  document.getElementById('videoPreviewThumb').src = '';
 }
-async function uploadImageAndSend(){
-  if(!pendingImageFile || !chatId) return;
-  const file = pendingImageFile; clearImageAttach(); showToast('Uploading image…');
+// Keep old name working in case anything else calls it
+function clearImageAttach(){ clearFileAttach(); }
+
+async function uploadFileAndSend(){
+  if(!pendingFile || !chatId) return;
+  const file = pendingFile;
+  clearFileAttach();
+
+  const isVideo = file.type.startsWith('video/');
+  const endpoint = isVideo
+    ? 'https://api.cloudinary.com/v1_1/df8v6dfqz/video/upload'
+    : 'https://api.cloudinary.com/v1_1/df8v6dfqz/image/upload';
+
+  showToast(isVideo ? '⬆️ Uploading video…' : '⬆️ Uploading image…');
+
   try {
-    const formData = new FormData(); formData.append('file', file); formData.append('upload_preset','yfkvefxb');
-    const res  = await fetch('https://api.cloudinary.com/v1_1/df8v6dfqz/image/upload',{method:'POST',body:formData});
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', 'yfkvefxb');
+    if(isVideo) formData.append('resource_type', 'video');
+
+    const res  = await fetch(endpoint, {method:'POST', body:formData});
     const data = await res.json();
-    if(!data.secure_url) throw new Error('No URL returned');
-    await db.ref('chats/'+chatId+'/messages').push({ sender:user.email, type:'image', imageUrl:data.secure_url, text:'', time:Date.now() });
-  } catch(err){ showToast('Upload failed: '+err.message); }
+    if(!data.secure_url) throw new Error(data.error?.message || 'No URL returned');
+
+    if(isVideo){
+      await db.ref('chats/'+chatId+'/messages').push({
+        sender:   user.email,
+        type:     'video',
+        fileUrl:  data.secure_url,
+        fileName: file.name,
+        fileSize: file.size,
+        text:     '',
+        time:     Date.now()
+      });
+    } else {
+      await db.ref('chats/'+chatId+'/messages').push({
+        sender:   user.email,
+        type:     'image',
+        imageUrl: data.secure_url,
+        text:     '',
+        time:     Date.now()
+      });
+    }
+    showToast(isVideo ? '✅ Video sent!' : '✅ Image sent!');
+  } catch(err){
+    showToast('Upload failed: '+err.message);
+    console.error('[UPLOAD]', err);
+  }
 }
+// Keep old name working
+async function uploadImageAndSend(){ await uploadFileAndSend(); }
 
 const EMOJI_LIST = ['😀','😂','😍','👍','🙏','🎉','🔥','❤️','😢','😮','👏','🚀','✅','❓','💡','🤔','😎','🥳','👀','💯'];
 function toggleEmojiPicker(){
@@ -1852,9 +2025,9 @@ function loadFiles(){
       promises.push(labelPromise.then(chatLabel=>{
         return db.ref('chats/'+cid+'/messages').once('value').then(msgSnap=>{
           const msgs=msgSnap.val(); if(!msgs)return;
-          Object.values(msgs).forEach(m=>{
+        Object.values(msgs).forEach(m=>{
             if((m.type==='image'||m.type==='gif')&&m.imageUrl) allFiles.push({...m,chatName:chatLabel});
-            if(m.type==='recording'&&m.fileUrl) allFiles.push({...m,chatName:chatLabel});
+            if((m.type==='video'||m.type==='recording')&&m.fileUrl) allFiles.push({...m,chatName:chatLabel});
           });
         });
       }));
@@ -1870,7 +2043,18 @@ function renderFiles(){
   grid.innerHTML='';
   filtered.forEach(f=>{
     const item=document.createElement('div'); item.className='files-item';
-    if(f.type==='recording'){
+    if(f.type==='video'){
+      const sizeStr = f.fileSize ? (f.fileSize>1048576?(f.fileSize/1048576).toFixed(1)+' MB':(f.fileSize/1024).toFixed(0)+' KB') : '';
+      item.innerHTML=`
+        <div class="files-item-video-wrap" onclick="window.open('${f.fileUrl}','_blank')">
+          <video class="files-item-video" src="${f.fileUrl}" preload="metadata" muted playsinline></video>
+          <div class="files-item-video-play">▶</div>
+        </div>
+        <div class="files-item-meta">
+          <div class="files-item-chat">${f.chatName||'Chat'}${sizeStr?' · '+sizeStr:''}</div>
+          <div class="files-item-time">${f.time?formatTime(f.time):''}</div>
+        </div>`;
+    } else if(f.type==='recording'){
       const sizeStr = f.fileSize ? (f.fileSize>1048576?(f.fileSize/1048576).toFixed(1)+' MB':(f.fileSize/1024).toFixed(0)+' KB') : '';
       item.innerHTML=`
         <div class="files-item-rec" onclick="window.open('${f.fileUrl}','_blank')">
