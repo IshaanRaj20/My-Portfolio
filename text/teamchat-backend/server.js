@@ -8,8 +8,6 @@ const githubRoute  = require('./routes/github');
 const weatherRoute = require('./routes/weather');
 const zoomRoute    = require('./routes/zoom');
 const notionRoute  = require('./routes/notion');
-const registerPushRoutes = require('./push');
-registerPushRoutes(app);
 
 const app = express();
 
@@ -34,6 +32,10 @@ app.use('/auth/github',  githubRoute);
 app.use('/weather',      weatherRoute);
 app.use('/auth/zoom',    zoomRoute);
 app.use('/auth/notion',  notionRoute);
+
+/* ── Push notifications (must be after app is defined) ── */
+const registerPushRoutes = require('./push');
+registerPushRoutes(app);
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`TeamChat backend listening on port ${PORT}`));
