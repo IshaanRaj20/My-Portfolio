@@ -599,22 +599,19 @@ const db        = firebase.database();
 const messaging = firebase.messaging();
 
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' })
+  navigator.serviceWorker.register('/text/firebase-messaging-sw.js')
     .then(reg => {
       console.log('[SW] registered, scope:', reg.scope);
-      /* Listen for messages FROM the service worker (notification clicks) */
       navigator.serviceWorker.addEventListener('message', event => {
         const msg = event.data;
         if(!msg) return;
         if(msg.type === 'OPEN_CHAT' && msg.chatId) {
-          /* Switch to the correct chat */
           switchView('chat');
           openChat(msg.chatId);
           setActiveChat(msg.chatId);
           document.body.classList.add('mobile-chat-open');
         }
         if(msg.type === 'OPEN_CALL' && msg.callId) {
-          /* The call UI is shown by listenCalls() which is already running */
           console.log('[SW] open call:', msg.callId);
         }
       });
