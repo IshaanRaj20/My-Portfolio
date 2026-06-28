@@ -240,11 +240,11 @@ db.ref('calls').on('child_added', async callSnap => {
 });
 
 /* ================================================================
-   ALSO EXPOSE AN HTTP ENDPOINT so you can trigger a test push
-   from the browser console:
-     fetch('https://your-railway-app.up.railway.app/push/test?email=you@example.com')
+   ALSO EXPOSE HTTP ENDPOINTS
    ================================================================ */
 module.exports = function registerPushRoutes(app) {
+
+  /* Test endpoint */
   app.get('/push/test', async (req, res) => {
     const { email } = req.query;
     if(!email) return res.status(400).json({ error: 'email required' });
@@ -262,4 +262,27 @@ module.exports = function registerPushRoutes(app) {
       res.status(500).json({ error: err.message });
     }
   });
+
+  /* Instant call push — called directly from the caller's browser
+     so notification arrives immediately without waiting for the
+     backend DB watcher to fire (avoids Render sleep delay) */
+  app.post('/push/call', async (req, res) => {
+    const { token, callerName, callerEmail, callId, chatId } = req.body;
+    if(!token || !callId) return res.status(400).json({ error: 'token and callId required' });
+    try {
+      await sendPush([token], {
+        type:       'call',
+        title:      `📞 ${callerName || callerEmail} is calling`,
+        body:       'Tap to answer',
+        callId,
+        chatId:     chatId || '',
+        senderName: callerName || callerEmail,
+        tag:        'call-' + callId
+      });
+      res.json({ ok: true });
+    } catch(err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
 };
