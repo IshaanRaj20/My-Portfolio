@@ -611,8 +611,44 @@ if('serviceWorker' in navigator){
           setActiveChat(msg.chatId);
           document.body.classList.add('mobile-chat-open');
         }
-        if(msg.type === 'OPEN_CALL' && msg.callId) {
-          console.log('[SW] open call:', msg.callId);
+        if(msg.type === 'OPEN_CALL') {
+          if(msg.action === 'decline' && msg.callId) {
+            /* Decline directly without showing UI */
+            db.ref('calls/' + msg.callId).update({ status: 'declined' });
+          } else if(msg.action === 'accept' && msg.callId) {
+            callId = msg.callId;
+            db.ref('calls/' + msg.callId).once('value').then(snap => {
+              const call = snap.val();
+              if(!call || call.status !== 'ringing') return;
+              document.getElementById('callUI').style.display = 'flex';
+              document.getElementById('incomingOverlay').style.display = 'flex';
+              document.getElementById('incomingName').textContent   = call.from;
+              document.getElementById('incomingAvatar').textContent = call.from[0].toUpperCase();
+              resolveDisplayName(call.from).then(name => {
+                document.getElementById('incomingName').textContent = name;
+              });
+              acceptCall();
+            });
+          } else if(msg.callId) {
+            /* Just show the incoming call UI */
+            callId = msg.callId;
+            db.ref('calls/' + msg.callId).once('value').then(snap => {
+              const call = snap.val();
+              if(!call || call.status !== 'ringing') return;
+              document.getElementById('callUI').style.display = 'flex';
+              document.getElementById('incomingOverlay').style.display = 'flex';
+              document.getElementById('incomingName').textContent        = call.from;
+              document.getElementById('incomingAvatar').textContent      = call.from[0].toUpperCase();
+              document.getElementById('remoteTileAvatar').textContent    = call.from[0].toUpperCase();
+              document.getElementById('remoteTileName').textContent      = call.from;
+              document.getElementById('callMeetingName').textContent     = call.from;
+              resolveDisplayName(call.from).then(name => {
+                document.getElementById('incomingName').textContent    = name;
+                document.getElementById('remoteTileName').textContent  = name;
+                document.getElementById('callMeetingName').textContent = name;
+              });
+            });
+          }
         }
       });
     })
@@ -676,21 +712,58 @@ async function setupPushNotifications(){
 
 /* Called on launch — checks URL params set by the SW's buildUrl() */
 function handleLaunchUrl(){
-  const params = new URLSearchParams(window.location.search);
+  const params    = new URLSearchParams(window.location.search);
   const chatParam = params.get('chat');
   const callParam = params.get('call');
+  const action    = params.get('action'); // 'accept' or 'decline'
+
   if(chatParam){
-    /* Wait for auth then open the chat */
     (function waitAndOpen(){
       if(user){ openChat(chatParam); setActiveChat(chatParam); switchView('chat'); document.body.classList.add('mobile-chat-open'); }
       else setTimeout(waitAndOpen, 300);
     })();
-    /* Clean the URL without reloading */
     window.history.replaceState({}, '', window.location.pathname);
   }
+
   if(callParam){
-    /* listenCalls() will pick it up once auth fires */
     window.history.replaceState({}, '', window.location.pathname);
+    (function waitAndHandleCall(){
+      if(!user){ setTimeout(waitAndHandleCall, 300); return; }
+
+      /* Look up the call in Firebase */
+      db.ref('calls/' + callParam).once('value').then(snap => {
+        const call = snap.val();
+        if(!call || call.status !== 'ringing') return;
+
+        callId = callParam;
+
+        if(action === 'decline'){
+          /* Decline without opening UI */
+          db.ref('calls/' + callParam).update({ status: 'declined' });
+          return;
+        }
+
+        /* Show the incoming call UI (accept or just ringing) */
+        document.getElementById('callUI').style.display = 'flex';
+        document.getElementById('incomingOverlay').style.display = 'flex';
+        document.getElementById('incomingName').textContent        = call.from;
+        document.getElementById('incomingAvatar').textContent      = call.from[0].toUpperCase();
+        document.getElementById('remoteTileAvatar').textContent    = call.from[0].toUpperCase();
+        document.getElementById('remoteTileName').textContent      = call.from;
+        document.getElementById('callMeetingName').textContent     = call.from;
+
+        /* Resolve real name */
+        resolveDisplayName(call.from).then(name => {
+          document.getElementById('incomingName').textContent     = name;
+          document.getElementById('remoteTileName').textContent   = name;
+          document.getElementById('callMeetingName').textContent  = name;
+        });
+
+        if(action === 'accept'){
+          acceptCall();
+        }
+      });
+    })();
   }
 }
 
@@ -1029,6 +1102,29 @@ async function startCall(){
   setup(true);
   pushCallLog('Started by', user.email);
 
+  /* ── Send push immediately from frontend so notification is instant ──
+     The backend also sends one but may be slow if Render was sleeping.
+     Sending from here guarantees the callee is notified right away. */
+  try {
+    const callerName = await resolveDisplayName(user.email);
+    const toKey = myKey(to);
+    const tokenSnap = await db.ref('notificationTokens/' + toKey).once('value');
+    const token = tokenSnap.val();
+    if(token){
+      await fetch('https://teamchat-backend-xg2a.onrender.com/push/call', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
+          callerName,
+          callerEmail: user.email,
+          callId: callRef.key,
+          chatId
+        })
+      });
+    }
+  } catch(e){ console.warn('[Push] instant call push failed:', e.message); }
+
   // Show full-screen call UI
   document.getElementById('callUI').style.display = 'flex';
   document.getElementById('remoteAvatarWrap').style.display = 'flex';
@@ -1040,7 +1136,7 @@ async function startCall(){
   startCallTimer();
   showCallStatus('📞', 'Calling ' + to, 'Waiting for answer…', 'End', '', endCall);
 
-  // Watch for decline
+  // Watch for decline/accept/end
   db.ref('calls/'+callId+'/status').on('value', snap => {
     const st = snap.val();
     if(st === 'declined'){
@@ -1051,7 +1147,7 @@ async function startCall(){
       hideCallStatus();
       document.getElementById('status').textContent = 'In call';
     }
-    if(st === 'ended' && !['declined'].includes(st)){
+    if(st === 'ended' && st !== 'declined'){
       stopCall();
     }
   });

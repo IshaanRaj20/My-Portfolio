@@ -11,7 +11,7 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-/* ── Dedup: ignore the same tag within 30 seconds ── */
+/* ── Dedup ── */
 const shownTags = new Set();
 function isDupe(tag) {
   if(!tag) return false;
@@ -21,17 +21,17 @@ function isDupe(tag) {
   return false;
 }
 
-/* ── Build deep-link URL preserving the /text/ base path ── */
-function buildUrl(data) {
+/* ── Build URL with action param ── */
+function buildUrl(data, action) {
   const base = self.registration.scope.replace(/\/$/, '');
-  if(data && data.type === 'call' && data.callId) return base + '/?call=' + data.callId;
-  if(data && data.chatId)                         return base + '/?chat=' + data.chatId;
+  if(data && data.type === 'call' && data.callId) {
+    return base + '/?call=' + data.callId + (action ? '&action=' + action : '');
+  }
+  if(data && data.chatId) return base + '/?chat=' + data.chatId;
   return base + '/';
 }
 
-/* ================================================================
-   BACKGROUND PUSH — fires when app/tab/PWA is completely closed
-   ================================================================ */
+/* ── BACKGROUND PUSH ── */
 messaging.onBackgroundMessage(function(payload) {
   console.log('[SW] background message:', payload);
 
@@ -50,15 +50,20 @@ messaging.onBackgroundMessage(function(payload) {
     badge:    '/android-chrome-192x192.png',
     tag:      tag,
     renotify: type !== 'call',
-    data:     { url: buildUrl(data), type: type, chatId: data.chatId || '', callId: data.callId || '' }
+    data:     {
+      url:    buildUrl(data),
+      type:   type,
+      chatId: data.chatId || '',
+      callId: data.callId || ''
+    }
   };
 
   if(type === 'call') {
     options.requireInteraction = true;
     options.vibrate            = [200, 100, 200, 100, 200];
     options.actions            = [
-      { action: 'accept',  title: '✅ Accept'  },
-      { action: 'decline', title: '❌ Decline' }
+      { action: 'decline', title: '📵 Decline' },
+      { action: 'accept',  title: '📞 Accept'  }
     ];
   } else {
     options.vibrate = [100, 50, 100];
@@ -71,9 +76,7 @@ messaging.onBackgroundMessage(function(payload) {
   return self.registration.showNotification(title, options);
 });
 
-/* ================================================================
-   NOTIFICATION CLICK
-   ================================================================ */
+/* ── NOTIFICATION CLICK ── */
 self.addEventListener('notificationclick', function(event) {
   var notification = event.notification;
   var action       = event.action;
@@ -81,9 +84,14 @@ self.addEventListener('notificationclick', function(event) {
 
   notification.close();
 
-  if(action === 'dismiss' || action === 'decline') return;
+  /* Dismiss only — close and do nothing */
+  if(action === 'dismiss') return;
 
-  var targetUrl = data.url || buildUrl(data);
+  /* For decline — we need to open the app briefly to update Firebase,
+     then it will close itself. Pass action=decline in URL. */
+  var targetUrl = action
+    ? buildUrl(data, action)
+    : (data.url || buildUrl(data));
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(list) {
@@ -97,22 +105,23 @@ self.addEventListener('notificationclick', function(event) {
         if(c.visibilityState === 'visible') { best = c; break; }
       }
 
-      if(best) {
+      if(best && action !== 'decline') {
+        /* App is open — send message to navigate */
         best.postMessage({
           type:   data.type === 'call' ? 'OPEN_CALL' : 'OPEN_CHAT',
           chatId: data.chatId || '',
-          callId: data.callId || ''
+          callId: data.callId || '',
+          action: action || 'open'
         });
         return best.focus();
       }
 
+      /* Open app at the correct URL (with action param if needed) */
       return clients.openWindow(targetUrl);
     })
   );
 });
 
-/* ================================================================
-   LIFECYCLE
-   ================================================================ */
+/* ── LIFECYCLE ── */
 self.addEventListener('install',  function()    { self.skipWaiting(); });
 self.addEventListener('activate', function(evt) { evt.waitUntil(self.clients.claim()); });
