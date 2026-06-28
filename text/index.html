@@ -972,6 +972,8 @@ function openChat(id){
     div.innerHTML = renderMarkdown(msg.text||'');
     return div;
   }
+
+  messagesRef.on('child_added', messageListener);
 }
 
 function renderMarkdown(text){
