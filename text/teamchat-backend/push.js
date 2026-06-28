@@ -225,7 +225,7 @@ db.ref('calls').on('child_added', async callSnap => {
     if(!tokens.length) return;
 
     await sendPush(tokens, {
-      type:       'call',
+      type:       'Call',
       title:      `📞 ${callerName} is calling`,
       body:       'Tap to answer',
       callId,
@@ -271,7 +271,7 @@ module.exports = function registerPushRoutes(app) {
     if(!token || !callId) return res.status(400).json({ error: 'token and callId required' });
     try {
       await sendPush([token], {
-        type:       'call',
+        type:       'Call',
         title:      `📞 ${callerName || callerEmail} is calling`,
         body:       'Tap to answer',
         callId,
