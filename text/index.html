@@ -933,124 +933,105 @@ function openChat(id){
     const senderEmail = m.sender || '';
     const isMedia = m.type==='image'||m.type==='gif'||m.type==='video'||m.type==='recording';
 
-    /* ── CRITICAL: capture lastGroup SYNCHRONOUSLY before any async work ── */
-    /* This prevents the race condition where two messages arrive quickly,
-       both see the same lastGroup inside a .then(), and end up grouped wrong */
+    /* Capture lastGroup SYNCHRONOUSLY before any async work */
     let lastGroup = null;
     for(let i = chatEl.children.length-1; i>=0; i--){
       if(chatEl.children[i].classList.contains('msgGroup')){ lastGroup = chatEl.children[i]; break; }
     }
     const shouldGroup = !isMedia && lastGroup && lastGroup.dataset.sender === senderEmail;
 
-    /* Create the DOM nodes synchronously so order is always correct */
-    let targetBody = null;
-    let newRow     = null;
-
     if(shouldGroup){
-      /* Append to existing group — create bubble placeholder now */
-      targetBody = lastGroup.querySelector('.mg-body');
+      /* Add bubble synchronously — no async needed */
       const bubble = document.createElement('div');
       bubble.className = 'bubble bubble-continuation'+(isMe?' me':'');
-      bubble.dataset.pending = '1';
-      targetBody.appendChild(bubble);
-      /* Fill content after name resolves */
-      const namePromise = typeof resolveDisplayName === 'function'
-        ? resolveDisplayName(senderEmail) : Promise.resolve(senderEmail.split('@')[0]);
-      namePromise.then(() => {
-        bubble.removeAttribute('data-pending');
-        bubble.appendChild(renderBubbleContent(m));
-        chatEl.scrollTop = chatEl.scrollHeight;
-      });
+      bubble.appendChild(renderBubbleContent(m));
+      lastGroup.querySelector('.mg-body').appendChild(bubble);
+      chatEl.scrollTop = chatEl.scrollHeight;
     } else {
-      /* Create new message group — insert placeholder row synchronously */
-      newRow = document.createElement('div');
-      newRow.className = 'msgGroup'+(isMe?' me':'');
-      newRow.dataset.sender = senderEmail;
+      /* Create full new message group */
       const avatarColor = isMe ? 'background:var(--blue)' : 'background:#7c3aed';
+      const newRow  = document.createElement('div');
+      newRow.className  = 'msgGroup'+(isMe?' me':'');
+      newRow.dataset.sender = senderEmail;
 
-      /* Avatar placeholder */
       const avatarEl = document.createElement('div');
       avatarEl.className = 'mg-avatar';
       avatarEl.style.cssText = avatarColor;
       avatarEl.textContent = senderEmail[0]?.toUpperCase() || '?';
-      newRow.appendChild(avatarEl);
 
-      /* Body */
-      const bodyDiv = document.createElement('div');
+      const bodyDiv  = document.createElement('div');
       bodyDiv.className = 'mg-body';
+
       const headerEl = document.createElement('div');
       headerEl.className = 'mg-header';
       headerEl.innerHTML = `<span class="mg-sender">…</span><span class="mg-time">${m.time?formatTime(m.time):''}</span>`;
       bodyDiv.appendChild(headerEl);
 
-      /* Bubble */
       const bubble = document.createElement('div');
       bubble.className = 'bubble'+(isMe?' me':'')+(isMedia?' bubble-media':'');
       bubble.appendChild(renderBubbleContent(m));
       bodyDiv.appendChild(bubble);
+
+      newRow.appendChild(avatarEl);
       newRow.appendChild(bodyDiv);
       chatEl.appendChild(newRow);
       chatEl.scrollTop = chatEl.scrollHeight;
 
-      /* Fill in real display name async — row is already in the DOM at correct position */
-      const namePromise = typeof resolveDisplayName === 'function'
-        ? resolveDisplayName(senderEmail) : Promise.resolve(senderEmail.split('@')[0]);
-      namePromise.then(senderName => {
+      /* Fill in real display name async — purely cosmetic, doesn't affect layout */
+      resolveDisplayName(senderEmail).then(senderName => {
         avatarEl.textContent = senderName[0].toUpperCase();
         headerEl.innerHTML = `<span class="mg-sender">${senderName}</span><span class="mg-time">${m.time?formatTime(m.time):''}</span>`;
       });
     }
   };
 
-  function renderBubbleContent(msg){
-    if((msg.type==='image'||msg.type==='gif') && msg.imageUrl){
-      const img = document.createElement('img');
-      img.src = msg.imageUrl; img.className = 'chat-image' + (msg.type==='gif'?' chat-gif':'');
-      if(msg.type==='image') img.onclick = () => window.open(msg.imageUrl,'_blank');
-      return img;
-    }
-    if(msg.type==='video' && msg.fileUrl){
-      const wrap = document.createElement('div');
-      wrap.className = 'video-bubble';
-      const sizeStr = msg.fileSize ? (msg.fileSize > 1048576
-        ? (msg.fileSize/1048576).toFixed(1)+' MB'
-        : (msg.fileSize/1024).toFixed(0)+' KB') : '';
-      wrap.innerHTML = `
-        <video class="chat-video" src="${msg.fileUrl}" controls preload="metadata" playsinline></video>
-        <div class="video-bubble-footer">
-          <span class="video-bubble-name">${msg.fileName || 'Video'}</span>
-          ${sizeStr ? '<span class="video-bubble-size">'+sizeStr+'</span>' : ''}
-          <a class="video-bubble-dl" href="${msg.fileUrl}" download="${msg.fileName||'video.mp4'}" target="_blank">⬇</a>
-        </div>`;
-      return wrap;
-    }
-    if(msg.type==='recording' && msg.fileUrl){
-      const wrap = document.createElement('div');
-      wrap.className = 'recording-bubble';
-      const sizeStr = msg.fileSize ? (msg.fileSize > 1048576
-        ? (msg.fileSize/1048576).toFixed(1)+' MB'
-        : (msg.fileSize/1024).toFixed(0)+' KB') : '';
-      wrap.innerHTML = `
-        <div class="rec-header">
-          <span class="rec-icon">🎥</span>
-          <div class="rec-info">
-            <div class="rec-name">${msg.fileName || 'Call recording'}</div>
-            <div class="rec-meta">Call recording${sizeStr ? ' · '+sizeStr : ''}</div>
-          </div>
-        </div>
-        <video class="rec-video" src="${msg.fileUrl}" controls preload="metadata" playsinline></video>
-        <a class="rec-download-btn" href="${msg.fileUrl}" download="${msg.fileName||'recording.webm'}" target="_blank">⬇ Download recording</a>`;
-      return wrap;
-    }
-    const div = document.createElement('div');
-    div.innerHTML = renderMarkdown(msg.text||'');
-    return div;
-  }
-
   messagesRef.on('child_added', messageListener);
 }
 
-function renderMarkdown(text){
+function renderBubbleContent(msg){
+  if((msg.type==='image'||msg.type==='gif') && msg.imageUrl){
+    const img = document.createElement('img');
+    img.src = msg.imageUrl; img.className = 'chat-image' + (msg.type==='gif'?' chat-gif':'');
+    if(msg.type==='image') img.onclick = () => window.open(msg.imageUrl,'_blank');
+    return img;
+  }
+  if(msg.type==='video' && msg.fileUrl){
+    const wrap = document.createElement('div');
+    wrap.className = 'video-bubble';
+    const sizeStr = msg.fileSize ? (msg.fileSize > 1048576
+      ? (msg.fileSize/1048576).toFixed(1)+' MB'
+      : (msg.fileSize/1024).toFixed(0)+' KB') : '';
+    wrap.innerHTML = `
+      <video class="chat-video" src="${msg.fileUrl}" controls preload="metadata" playsinline></video>
+      <div class="video-bubble-footer">
+        <span class="video-bubble-name">${msg.fileName || 'Video'}</span>
+        ${sizeStr ? '<span class="video-bubble-size">'+sizeStr+'</span>' : ''}
+        <a class="video-bubble-dl" href="${msg.fileUrl}" download="${msg.fileName||'video.mp4'}" target="_blank">⬇</a>
+      </div>`;
+    return wrap;
+  }
+  if(msg.type==='recording' && msg.fileUrl){
+    const wrap = document.createElement('div');
+    wrap.className = 'recording-bubble';
+    const sizeStr = msg.fileSize ? (msg.fileSize > 1048576
+      ? (msg.fileSize/1048576).toFixed(1)+' MB'
+      : (msg.fileSize/1024).toFixed(0)+' KB') : '';
+    wrap.innerHTML = `
+      <div class="rec-header">
+        <span class="rec-icon">🎥</span>
+        <div class="rec-info">
+          <div class="rec-name">${msg.fileName || 'Call recording'}</div>
+          <div class="rec-meta">Call recording${sizeStr ? ' · '+sizeStr : ''}</div>
+        </div>
+      </div>
+      <video class="rec-video" src="${msg.fileUrl}" controls preload="metadata" playsinline></video>
+      <a class="rec-download-btn" href="${msg.fileUrl}" download="${msg.fileName||'recording.webm'}" target="_blank">⬇ Download recording</a>`;
+    return wrap;
+  }
+  const div = document.createElement('div');
+  div.innerHTML = renderMarkdown(msg.text||'');
+  return div;
+
   return text
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
