@@ -6,7 +6,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="manifest" href="manifest.json">
-<meta name="robots" content="noindex, nofollow">
 <link rel="icon" type="image/x-icon" href="favicon.ico">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
@@ -883,7 +882,10 @@ function openChat(id){
   document.getElementById('callBtn').style.display = 'flex';
   document.getElementById('chat').innerHTML = '';
 
-  if(messagesRef && messageListener) messagesRef.off('child_added', messageListener);
+  if(messagesRef && messageListener) {
+    const ref = messageListener._newRef || messagesRef;
+    ref.off('child_added', messageListener);
+  }
   messagesRef = db.ref('chats/' + id + '/messages');
 
   db.ref('chats/' + id).once('value').then(snap => {
@@ -920,12 +922,17 @@ function openChat(id){
       return;
     }
 
-    const msgDate = m.time ? new Date(m.time).toDateString() : null;
-    if(msgDate && msgDate !== lastDate){
+    /* Normalise time — Firebase can return strings or numbers */
+    const msgTime = m.time ? parseInt(m.time, 10) : Date.now();
+    const msgDateObj = new Date(msgTime);
+    const msgDate    = msgDateObj.toDateString();
+    const todayDate  = new Date().toDateString();
+
+    if(msgDate !== lastDate){
       lastDate = msgDate;
       const div = document.createElement('div');
       div.className = 'date-divider';
-      div.innerHTML = `<span>${msgDate === new Date().toDateString() ? 'Today' : msgDate}</span>`;
+      div.innerHTML = `<span>${msgDate === todayDate ? 'Today' : msgDate}</span>`;
       chatEl.appendChild(div);
     }
 
@@ -985,7 +992,23 @@ function openChat(id){
     }
   };
 
-  messagesRef.on('child_added', messageListener);
+  /* Load ALL existing messages first, then listen for new ones.
+     Using only child_added can miss messages that arrived before
+     the listener attached, causing the "message missing" bug. */
+  messagesRef.once('value').then(snap => {
+    const msgs = snap.val();
+    if(msgs){
+      Object.values(msgs).forEach(m => messageListener({ val: () => m }));
+    }
+    /* Now listen for messages added AFTER we loaded */
+    const lastKey = msgs ? Object.keys(msgs).pop() : null;
+    const newMsgsRef = lastKey
+      ? messagesRef.orderByKey().startAfter(lastKey)
+      : messagesRef;
+    newMsgsRef.on('child_added', messageListener);
+    /* Store ref for cleanup */
+    messageListener._newRef = newMsgsRef;
+  });
 }
 
 function renderBubbleContent(msg){
@@ -1031,7 +1054,7 @@ function renderBubbleContent(msg){
   const div = document.createElement('div');
   div.innerHTML = renderMarkdown(msg.text||'');
   return div;
-
+}
   return text
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
@@ -1040,7 +1063,7 @@ function renderBubbleContent(msg){
     .replace(/\n/g,'<br>');
 }
 function formatTime(ms){
-  const d = new Date(ms);
+  const d = new Date(parseInt(ms, 10));
   let h = d.getHours(), m = d.getMinutes();
   const ampm = h>=12?'PM':'AM'; h = h%12||12; m = m<10?'0'+m:m;
   return `${h}:${m} ${ampm}`;
