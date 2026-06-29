@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Allow: /arcade
+Allow: /super-mario
+Allow: /flappy-bird
+Allow: /calculator
+Disallow: /text/
+Sitemap: https://zenithish.com

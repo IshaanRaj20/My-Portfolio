@@ -2,7 +2,19 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 
   <url>
-    <loc>https://zenithish.com/</loc>
+    <loc>https://zenithish.com</loc>
+  </url>
+  <url>
+    <loc>https://zenithish.comarcade</loc>
+  </url>
+  <url>
+    <loc>https://zenithish.comsuper-mario</loc>
+  </url>
+  <url>
+    <loc>https://zenithish.comflappy-bird</loc>
+  </url>
+  <url>
+    <loc>https://zenithish.comcalculator</loc>
   </url>
 
 </urlset>
