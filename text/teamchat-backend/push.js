@@ -88,7 +88,7 @@ async function sendPush(tokens, payload) {
           'content-available': 1,
           sound: 'default',
           alert: {
-            title: payload.title || 'TeamChat',
+            title: payload.title || 'NexChat',
             body:  payload.body  || ''
           }
         }
@@ -147,7 +147,7 @@ async function getChatLabel(chatId, recipientEmail) {
   const others  = members.filter(e => e !== recipientEmail);
   const isDM    = others.length === 1 && !chat.isGroup;
   if(isDM) return getDisplayName(others[0]);
-  return chat.name || 'TeamChat';
+  return chat.name || 'NexChat';
 }
 
 /* ================================================================
@@ -253,7 +253,7 @@ module.exports = function registerPushRoutes(app) {
       if(!tokens.length) return res.json({ ok: false, reason: 'no tokens registered for this email' });
       await sendPush(tokens, {
         type:  'message',
-        title: 'TeamChat test 🎉',
+        title: 'NexChat test 🎉',
         body:  'Push notifications are working!',
         tag:   'test-' + Date.now()
       });
