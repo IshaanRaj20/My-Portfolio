@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<title>NexChat</title>
+<title>TeamChat</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -87,7 +87,7 @@
       <div class="ch-icon" id="chatHeaderIcon">💬</div>
       <div class="ch-info">
         <div class="ch-name" id="chatHeaderName">Select a chat</div>
-        <div class="ch-members" id="chatHeaderMembers">NexChat</div>
+        <div class="ch-members" id="chatHeaderMembers">TeamChat</div>
       </div>
       <div class="ch-actions">
         <button class="ch-btn" onclick="startCall()" id="callBtn" style="display:none">📞<span class="ch-btn-text"> Call</span></button>
@@ -365,7 +365,7 @@
   <!-- Top bar -->
   <div class="call-topbar">
     <div class="call-topbar-left">
-      <div class="call-logo-pill">💬 NexChat</div>
+      <div class="call-logo-pill">💬 TeamChat</div>
     </div>
     <div class="call-topbar-center">
       <div class="call-meeting-name" id="callMeetingName">Meeting</div>
@@ -449,7 +449,7 @@
       <div class="incoming-name" id="incomingName">Someone</div>
       <div class="incoming-sub">
         <span class="inc-dot"></span>
-        Incoming video call · NexChat
+        Incoming video call · TeamChat
       </div>
     </div>
     <div class="incoming-actions">
@@ -682,9 +682,9 @@ async function setupPushNotifications(){
     messaging.onMessage(payload => {
       const data  = payload.data || {};
       const notif = payload.notification || {};
-      const title = data.title || notif.title || 'NexChat';
+      const title = data.title || notif.title || 'TeamChat';
       const body  = data.body  || notif.body  || '';
-      const tag   = data.tag   || 'nexchat';
+      const tag   = data.tag   || 'teamchat';
 
       /* Dedup */
       if(shownNotifIds.has(tag)) return;
@@ -774,7 +774,7 @@ function notifyIncomingCall(callerEmail){
   if(shownNotifIds.has(tag)) return;
   shownNotifIds.add(tag);
   setTimeout(() => shownNotifIds.delete(tag), 60000);
-  new Notification('📞 Incoming call · NexChat', {
+  new Notification('📞 Incoming call · TeamChat', {
     body:               callerEmail + ' is calling you',
     icon:               '/android-chrome-192x192.png',
     tag,
@@ -902,7 +902,7 @@ function openChat(id){
       if(isDM){
         watchHeaderPresence(others[0]);
       } else {
-        document.getElementById('chatHeaderMembers').textContent = memberEmails.join(', ') || 'NexChat';
+        document.getElementById('chatHeaderMembers').textContent = memberEmails.join(', ') || 'TeamChat';
       }
     });
   });
@@ -1055,6 +1055,8 @@ function renderBubbleContent(msg){
   div.innerHTML = renderMarkdown(msg.text||'');
   return div;
 }
+
+function renderMarkdown(text){
   return text
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
