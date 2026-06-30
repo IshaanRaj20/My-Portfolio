@@ -1,6 +1,6 @@
 {
-  "name": "TeamChat",
-  "short_name": "TeamChat",
+  "name": "NexChat",
+  "short_name": "NexChat",
   "start_url": "/text/",
   "display": "standalone",
   "background_color": "#0f172a",
