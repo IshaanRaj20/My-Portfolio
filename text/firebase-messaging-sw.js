@@ -37,10 +37,10 @@ messaging.onBackgroundMessage(function(payload) {
 
   var data  = payload.data        || {};
   var notif = payload.notification || {};
-  var title = data.title  || notif.title || 'TeamChat';
+  var title = data.title  || notif.title || 'NexChat';
   var body  = data.body   || notif.body  || '';
   var type  = data.type   || 'message';
-  var tag   = data.tag    || (type === 'call' ? 'call-' + data.callId : 'msg-' + data.chatId) || 'teamchat';
+  var tag   = data.tag    || (type === 'call' ? 'call-' + data.callId : 'msg-' + data.chatId) || 'nexchat';
 
   if(isDupe(tag)) return;
 
