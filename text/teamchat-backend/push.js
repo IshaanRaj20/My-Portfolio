@@ -1,33 +1,5 @@
-/* ================================================================
-   push.js  —  Drop this into your Railway Express server.
-   
-   SETUP (one-time, 5 minutes, completely free):
-   -----------------------------------------------
-   1. Go to Firebase Console → Project Settings → Service Accounts
-   2. Click "Generate new private key" → downloads a JSON file
-   3. In Railway dashboard → your service → Variables, add:
-        FIREBASE_SERVICE_ACCOUNT  =  <paste the entire JSON as one line>
-   4. In your main server file (e.g. server.js / index.js) add:
-        require('./push');
-   That's it. No paid plan needed — FCM is free forever.
-
-   HOW IT WORKS:
-   -----------------------------------------------
-   • This module connects to Firebase Realtime Database using the
-     Admin SDK (server-side, not browser).
-   • It watches for new messages and new calls.
-   • When one arrives it looks up the recipient's FCM token(s) from
-     /notificationTokens/{userKey} in the DB.
-   • It sends a push via FCM — this wakes up the browser/PWA even
-     when it's completely closed, the tab is closed, or the device
-     is locked (on Android; iOS has limited support).
-   • The Service Worker (firebase-messaging-sw.js) receives the push
-     and shows the notification.
-   ================================================================ */
-
 const admin = require('firebase-admin');
 
-/* ── Initialize Firebase Admin (uses env var set in Railway) ── */
 let serviceAccount;
 try {
   serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
@@ -43,54 +15,40 @@ if(!admin.apps.length) {
   });
 }
 
-const db       = admin.database();
+const db        = admin.database();
 const messaging = admin.messaging();
 
-/* ── Helper: get a user's display name from /profiles ── */
 async function getDisplayName(email) {
   const key  = email.toLowerCase().replace(/\./g, '_');
   const snap = await db.ref(`profiles/${key}/displayName`).once('value');
   return snap.val() || email.split('@')[0];
 }
 
-/* ── Helper: get all FCM tokens for a user ── */
 async function getTokens(email) {
   const key  = email.toLowerCase().replace(/\./g, '_');
   const snap = await db.ref(`notificationTokens/${key}`).once('value');
   const val  = snap.val();
   if(!val) return [];
-  /* tokens can be stored as a single string or object of {token: true} */
   if(typeof val === 'string') return [val];
   if(typeof val === 'object') return Object.values(val).filter(t => typeof t === 'string');
   return [];
 }
 
-/* ── Helper: send FCM push and clean up stale tokens ── */
 async function sendPush(tokens, payload) {
   if(!tokens.length) return;
-
   const messages = tokens.map(token => ({
     token,
-    /* Use data-only payload so the SW controls everything.
-       Notification key is omitted intentionally — the SW
-       calls showNotification() itself for full control. */
     data: Object.fromEntries(
       Object.entries(payload).map(([k, v]) => [k, String(v)])
     ),
-    android: {
-      priority: 'high',
-      ttl:      60 * 60 * 1000  /* 1 hour */
-    },
+    android: { priority: 'high', ttl: 60 * 60 * 1000 },
     apns: {
       headers: { 'apns-priority': '10' },
       payload: {
         aps: {
           'content-available': 1,
           sound: 'default',
-          alert: {
-            title: payload.title || 'NexChat',
-            body:  payload.body  || ''
-          }
+          alert: { title: payload.title || 'NexChat', body: payload.body || '' }
         }
       }
     },
@@ -99,17 +57,13 @@ async function sendPush(tokens, payload) {
       fcmOptions: { analyticsLabel: payload.type || 'message' }
     }
   }));
-
   try {
     const response = await messaging.sendEach(messages);
-    /* Remove tokens that are no longer valid */
     response.responses.forEach((resp, i) => {
       if(!resp.success) {
         const code = resp.error?.code;
         if(code === 'messaging/registration-token-not-registered' ||
            code === 'messaging/invalid-registration-token') {
-          console.log('[Push] Removing stale token:', tokens[i].slice(0, 20) + '…');
-          /* Find the user this token belongs to and remove it */
           removeStaleToken(tokens[i]);
         }
       }
@@ -125,21 +79,17 @@ async function removeStaleToken(token) {
     const snap = await db.ref('notificationTokens').once('value');
     const all  = snap.val() || {};
     for(const [key, val] of Object.entries(all)) {
-      if(val === token) {
-        await db.ref(`notificationTokens/${key}`).remove();
-      }
+      if(val === token) await db.ref(`notificationTokens/${key}`).remove();
     }
-  } catch(e) { /* best effort */ }
+  } catch(e) {}
 }
 
-/* ── Helper: get chat members ── */
 async function getChatMembers(chatId) {
   const snap = await db.ref(`chats/${chatId}/members`).once('value');
   const val  = snap.val() || {};
   return Object.keys(val).map(k => k.replace(/_/g, '.'));
 }
 
-/* ── Helper: get chat display name for a recipient ── */
 async function getChatLabel(chatId, recipientEmail) {
   const snap    = await db.ref(`chats/${chatId}`).once('value');
   const chat    = snap.val() || {};
@@ -150,17 +100,12 @@ async function getChatLabel(chatId, recipientEmail) {
   return chat.name || 'NexChat';
 }
 
-/* ================================================================
-   WATCH FOR NEW MESSAGES
-   We use child_added with a startAt timestamp so we only get
-   messages sent AFTER the server started (not historical ones).
-   ================================================================ */
+/* ── Watch for new messages ── */
 const startTime = Date.now();
-const processedMessages = new Set(); /* dedup within this server run */
+const processedMessages = new Set();
 
 db.ref('chats').on('child_added', chatSnap => {
   const chatId = chatSnap.key;
-
   db.ref(`chats/${chatId}/messages`).on('child_added', async msgSnap => {
     const msg = msgSnap.val();
     if(!msg || !msg.time || msg.time < startTime) return;
@@ -172,20 +117,19 @@ db.ref('chats').on('child_added', chatSnap => {
     setTimeout(() => processedMessages.delete(msgKey), 60000);
 
     try {
-      const members     = await getChatMembers(chatId);
-      const senderName  = await getDisplayName(msg.sender);
-      const recipients  = members.filter(e => e !== msg.sender);
+      const members    = await getChatMembers(chatId);
+      const senderName = await getDisplayName(msg.sender);
+      const recipients = members.filter(e => e !== msg.sender);
 
       for(const recipient of recipients) {
-        const tokens   = await getTokens(recipient);
+        const tokens = await getTokens(recipient);
         if(!tokens.length) continue;
 
         const chatLabel = await getChatLabel(chatId, recipient);
-        let   body      = '';
-
-        if(msg.type === 'image')     body = `${senderName} sent a photo`;
-        else if(msg.type === 'video') body = `${senderName} sent a video`;
-        else if(msg.type === 'gif')   body = `${senderName} sent a GIF`;
+        let body = '';
+        if(msg.type === 'image')          body = `${senderName} sent a photo`;
+        else if(msg.type === 'video')     body = `${senderName} sent a video`;
+        else if(msg.type === 'gif')       body = `${senderName} sent a GIF`;
         else if(msg.type === 'recording') body = `${senderName} shared a call recording`;
         else body = msg.text ? `${senderName}: ${msg.text.slice(0, 100)}` : `${senderName} sent a message`;
 
@@ -205,15 +149,12 @@ db.ref('chats').on('child_added', chatSnap => {
   });
 });
 
-/* ================================================================
-   WATCH FOR INCOMING CALLS
-   ================================================================ */
+/* ── Watch for incoming calls ── */
 const processedCalls = new Set();
 
 db.ref('calls').on('child_added', async callSnap => {
   const call   = callSnap.val();
   const callId = callSnap.key;
-
   if(!call || call.status !== 'ringing') return;
   if(processedCalls.has(callId)) return;
   processedCalls.add(callId);
@@ -225,7 +166,7 @@ db.ref('calls').on('child_added', async callSnap => {
     if(!tokens.length) return;
 
     await sendPush(tokens, {
-      type:       'Call',
+      type:       'call',          /* lowercase — must match SW check */
       title:      `📞 ${callerName} is calling`,
       body:       'Tap to answer',
       callId,
@@ -239,12 +180,9 @@ db.ref('calls').on('child_added', async callSnap => {
   }
 });
 
-/* ================================================================
-   ALSO EXPOSE HTTP ENDPOINTS
-   ================================================================ */
+/* ── HTTP endpoints ── */
 module.exports = function registerPushRoutes(app) {
 
-  /* Test endpoint */
   app.get('/push/test', async (req, res) => {
     const { email } = req.query;
     if(!email) return res.status(400).json({ error: 'email required' });
@@ -263,15 +201,12 @@ module.exports = function registerPushRoutes(app) {
     }
   });
 
-  /* Instant call push — called directly from the caller's browser
-     so notification arrives immediately without waiting for the
-     backend DB watcher to fire (avoids Render sleep delay) */
   app.post('/push/call', async (req, res) => {
     const { token, callerName, callerEmail, callId, chatId } = req.body;
     if(!token || !callId) return res.status(400).json({ error: 'token and callId required' });
     try {
       await sendPush([token], {
-        type:       'Call',
+        type:       'call',        /* lowercase — must match SW check */
         title:      `📞 ${callerName || callerEmail} is calling`,
         body:       'Tap to answer',
         callId,
