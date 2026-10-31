@@ -1,0 +1,14 @@
+const firebaseConfig = {
+  apiKey: "AIzaSyDp1LSm2HlZ3xBDlwBPnEU62Es_KoyavUw",
+  authDomain: "secret-chat-6de59.firebaseapp.com",
+  projectId: "secret-chat-6de59",
+  storageBucket: "secret-chat-6de59.firebasestorage.app",
+  messagingSenderId: "107760706349",
+  appId: "1:107760706349:web:aad5387e7d0003d90ca9a4"
+};
+
+const allowedEmails = [
+  "ishaan.raj111@gmail.com",
+  "bhagat.prerna@gmail.com",
+  "rakesh.chourasia@gmail.com"
+];
